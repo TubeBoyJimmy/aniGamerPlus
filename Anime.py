@@ -550,7 +550,61 @@ class Anime:
         result = result + tmp
         return result
 
+    def __get_plex_filename(self, plex_info):
+        """生成 Plex 相容的檔名: {clean_title} S{SS}E{EE}.{ext}"""
+        clean_title = plex_info['clean_title']
+        season_num = plex_info['season_num']
+        ep_offset = plex_info.get('ep_offset', 0)
+        episode = self._episode
+        ext = self._settings['video_filename_extension']
+
+        # 特別篇/OVA 偵測
+        extra = re.findall(self.extra_title_filter, self._bangumi_name_orig)
+        if extra or (not re.match(r'^\d+(\.\d+)?$', episode) and episode != '電影'):
+            # 特別篇/OVA → S00E##
+            ep_num = re.findall(r'\d+', episode)
+            ep_str = ep_num[0].zfill(2) if ep_num else '01'
+            filename = '{} S00E{}.{}'.format(clean_title, ep_str, ext)
+        elif episode == '電影':
+            # 電影 → S00E01
+            filename = '{} S00E01.{}'.format(clean_title, ext)
+        else:
+            # 一般集數, 套用集數偏移
+            # ep_offset 同時作為季數分界點:
+            #   集數 > ep_offset → 使用指定季數, 集數減去偏移
+            #   集數 <= ep_offset → 自動歸為前一季 (season_num-1), 不偏移
+            if re.match(r'^\d+\.\d+$', episode):
+                int_part = int(re.findall(r'^\d+', episode)[0])
+                dec_part = re.findall(r'\.\d+$', episode)[0]
+            else:
+                int_part = int(episode)
+                dec_part = ''
+
+            if ep_offset > 0 and int_part <= ep_offset:
+                # 在分界點以下 → 前一季, 不偏移
+                season_to_use = max(season_num - 1, 1)
+                adjusted = int_part
+            elif ep_offset > 0:
+                # 在分界點以上 → 指定季數, 套用偏移
+                season_to_use = season_num
+                adjusted = int_part - ep_offset
+            else:
+                # 無偏移
+                season_to_use = season_num
+                adjusted = int_part
+
+            adjusted = max(adjusted, 1)
+            ep_str = str(adjusted).zfill(2) + dec_part
+            season_str = str(season_to_use).zfill(2)
+            filename = '{} S{}E{}.{}'.format(clean_title, season_str, ep_str, ext)
+
+        return Config.legalize_filename(filename)
+
     def __get_filename(self, resolution, without_suffix=False):
+        # Plex 模式下使用專用檔名
+        if hasattr(self, '_plex_info') and self._plex_info is not None and not without_suffix:
+            return self.__get_plex_filename(self._plex_info)
+
         # 处理剧集名补零
         if re.match(r'^[+-]?\d+(\.\d+){0,1}$', self._episode) and self._settings['zerofill'] > 1:
             # 正则考虑到了带小数点的剧集
@@ -864,7 +918,7 @@ class Anime:
                 run_ffmpeg.returncode) + ' Bad segment=' + str(return_str.find('Failed to open segment'))
             err_print(self._sn, '下載失败', err_msg_detail, status=1)
 
-    def download(self, resolution='', save_dir='', bangumi_tag='', realtime_show_file_size=False, rename='', classify=True):
+    def download(self, resolution='', save_dir='', bangumi_tag='', realtime_show_file_size=False, rename='', classify=True, plex_info=None):
         self.realtime_show_file_size = realtime_show_file_size
         if not resolution:
             resolution = self._settings['download_resolution']
@@ -913,9 +967,16 @@ class Anime:
                 raise FileNotFoundError  # 如果本地目录下也没有找到 ffmpeg 则丢出异常
 
         # 创建存放番剧的目录，去除非法字符
-        if bangumi_tag:  # 如果指定了番剧分类
+        if plex_info is not None:
+            # Plex 模式: 使用 plex_bangumi_dir 或 bangumi_dir, 建立 folder_name 資料夾
+            plex_base = self._settings.get('plex_bangumi_dir', '')
+            if plex_base:
+                self._bangumi_dir = plex_base
+            self._bangumi_dir = os.path.join(self._bangumi_dir, Config.legalize_filename(plex_info['folder_name']))
+            self._plex_info = plex_info
+        elif bangumi_tag:  # 如果指定了番剧分类
             self._bangumi_dir = os.path.join(self._bangumi_dir, Config.legalize_filename(bangumi_tag))
-        if classify:  # 控制是否建立番剧文件夹
+        if plex_info is None and classify:  # 控制是否建立番剧文件夹 (Plex 模式不走此邏輯)
             if self._settings['classify_season']:  # 控制是否建立番剧季度子文件夹
                 season = re.findall(self.season_title_filter, self._bangumi_name_orig)
                 extra = re.findall(self.extra_title_filter, self._bangumi_name_orig)
@@ -979,6 +1040,19 @@ class Anime:
             err_msg_detail = '指定清晰度不存在, 選取最近可用清晰度: ' + resolution + 'P'
             err_print(self._sn, '任務狀態', err_msg_detail, status=1)
         self.video_resolution = int(resolution)
+
+        # 檢查目標檔案是否已存在 (避免重複下載)
+        _check_filename = self.__get_filename(resolution)
+        _check_output = os.path.join(self._bangumi_dir, _check_filename)
+        if os.path.exists(_check_output):
+            _exist_size = int(os.path.getsize(_check_output) / float(1024 * 1024))
+            if _exist_size >= 5:
+                err_print(self._sn, '下載狀態', _check_filename + ' 已存在 (' + str(_exist_size) + 'MB), 跳過下載', status=2)
+                self.video_size = _exist_size
+                self.local_video_path = _check_output
+                self._video_filename = _check_filename
+                del Config.tasks_progress_rate[int(self._sn)]
+                return
 
         # 解析完成, 开始下载
         Config.tasks_progress_rate[int(self._sn)]['status'] = '正在下載'
@@ -1074,15 +1148,21 @@ class Anime:
         # plex 自動更新媒體庫
         if self._settings['plex_refresh']:
             try:
-                url = 'https://{plex_url}/library/sections/{plex_section}/refresh?X-Plex-Token={plex_token}'.format(
-                    plex_url=self._settings['plex_url'],
-                    plex_section=self._settings['plex_section'],
-                    plex_token=self._settings['plex_token']
+                plex_url = self._settings['plex_url'].strip()
+                # 去除使用者可能誤加的協議前綴, 統一使用 https
+                plex_url = re.sub(r'^https?://', '', plex_url).rstrip('/')
+                plex_base = 'https://' + plex_url
+                url = '{base}/library/sections/{section}/refresh?X-Plex-Token={token}'.format(
+                    base=plex_base,
+                    section=self._settings['plex_section'],
+                    token=self._settings['plex_token']
                 )
-                r = requests.get(url)
+                r = requests.get(url, verify=False)
                 if r.status_code != 200:
-                    err_print(self._sn, 'Plex auto Refresh ERROR', status=1)
-            except:
+                    err_print(self._sn, 'Plex auto Refresh ERROR', 'HTTP ' + str(r.status_code), status=1)
+                else:
+                    err_print(self._sn, 'Plex Refresh', '媒體庫更新請求已發送', status=2)
+            except Exception as e:
                 err_print(self._sn, 'Plex auto Refresh UNKNOWN ERROR', 'Exception: ' + str(e), status=1)
 
     def upload(self, bangumi_tag='', debug_file=''):

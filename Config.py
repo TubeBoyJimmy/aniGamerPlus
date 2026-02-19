@@ -22,7 +22,7 @@ sn_list_path = os.path.join(working_dir, 'sn_list.txt')
 cookie_path = os.path.join(working_dir, 'cookie.txt')
 logs_dir = os.path.join(working_dir, 'logs')
 aniGamerPlus_version = 'v24.6'
-latest_config_version = 17.2
+latest_config_version = 18.0
 latest_database_version = 2.0
 cookie = None
 max_multi_thread = 5
@@ -139,6 +139,7 @@ def __init_settings():
                 'plex_token': '',
                 'plex_section': '',
                 'plex_naming': False, # 適配PLEX命名規則
+                'plex_bangumi_dir': '',  # Plex 媒體目標資料夾, 空字串 = 使用 bangumi_dir
                 'faststart_movflags': False,
                 'audio_language': False,
                 'use_mobile_api': False,
@@ -386,6 +387,10 @@ def __update_settings(old_settings):  # 升级配置文件
         # v24.4 sn解析冷卻時間(秒)
         new_settings['parse_sn_cd'] = 5
 
+    if 'plex_bangumi_dir' not in new_settings.keys():
+        # v18.0 新增 Plex 媒體目標資料夾
+        new_settings['plex_bangumi_dir'] = ''
+
     new_settings['config_version'] = latest_config_version
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(new_settings, f, ensure_ascii=False, indent=4)
@@ -619,6 +624,46 @@ def check_encoding(file_path):
                 __color_print(0, '檔案讀取', file_path + ' 轉碼成功', no_sn=True, status=2)
 
 
+def _zh_to_int(zh_num):
+    """中文數字轉阿拉伯數字"""
+    zh2digit_table = {'零': 0, '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4,
+                      '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10}
+    digit_num = 0
+    result = 0
+    tmp = 0
+    while digit_num < len(zh_num):
+        tmp_num = zh2digit_table.get(zh_num[digit_num], None)
+        if tmp_num is not None and tmp_num >= 10:
+            if tmp == 0:
+                tmp = 1
+            result = result + tmp_num * tmp
+            tmp = 0
+        elif tmp_num is not None:
+            tmp = tmp * 10 + tmp_num
+        digit_num += 1
+    return result + tmp
+
+
+def derive_clean_title(folder_name):
+    """從資料夾名去掉季數標記, 推導乾淨標題"""
+    clean = folder_name
+    clean = re.sub(r'\s*第[零一二三四五六七八九十]{1,3}季\s*$', '', clean)
+    clean = re.sub(r'\s*Season\s+\d+\s*$', '', clean, flags=re.IGNORECASE)
+    clean = re.sub(r'\s*\[年齡限制版\]\s*$', '', clean)
+    return clean.strip()
+
+
+def detect_season_from_name(name):
+    """從名稱中偵測季數, 偵測不到回傳 1"""
+    season_match = re.findall(r'第([零一二三四五六七八九十]{1,3})季', name)
+    if season_match:
+        return _zh_to_int(season_match[0])
+    season_match_en = re.findall(r'Season\s+(\d+)', name, flags=re.IGNORECASE)
+    if season_match_en:
+        return int(season_match_en[0])
+    return 1
+
+
 def read_sn_list():
     settings = read_settings()
 
@@ -666,6 +711,32 @@ def read_sn_list():
                 bangumi_tag = re.sub(r"( )+$", "", bangumi_tag)
                 sn_dict[int(a[0])]['tag'] = bangumi_tag
                 sn_dict[int(a[0])]['rename'] = rename
+
+                # 解析 Plex 模式參數: {資料夾名} <檔名標題> (S季數) 或 (S季數-偏移)
+                plex_info = None
+                folder_match = re.findall(r'\{(.+?)\}', i)
+                if folder_match:
+                    folder_name = folder_match[0].strip()
+                    # 解析 <檔名標題>
+                    title_match = re.findall(r'<(.+?)>', i)
+                    clean_title = title_match[0].strip() if title_match else ''
+                    if not clean_title:
+                        clean_title = derive_clean_title(folder_name)
+                    # 解析 (S季數) 或 (S季數-集數偏移)
+                    season_match = re.findall(r'\(S(\d+)(?:-(\d+))?\)', i)
+                    if season_match:
+                        season_num = int(season_match[0][0])
+                        ep_offset = int(season_match[0][1]) if season_match[0][1] else 0
+                    else:
+                        season_num = detect_season_from_name(folder_name)
+                        ep_offset = 0
+                    plex_info = {
+                        'folder_name': folder_name,
+                        'clean_title': clean_title,
+                        'season_num': season_num,
+                        'ep_offset': ep_offset
+                    }
+                sn_dict[int(a[0])]['plex'] = plex_info
         return sn_dict
 
 

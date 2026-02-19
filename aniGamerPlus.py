@@ -210,6 +210,7 @@ def update_db(anime):
 def worker(sn, sn_info, realtime_show_file_size=False):
     bangumi_tag = sn_info['tag']
     rename = sn_info['rename']
+    plex_info = sn_info.get('plex', None)
 
     def upload_quit():
         queue.pop(sn)
@@ -268,7 +269,8 @@ def worker(sn, sn_info, realtime_show_file_size=False):
 
     try:
         anime.download(settings['download_resolution'], bangumi_tag=bangumi_tag, rename=rename,
-                       realtime_show_file_size=realtime_show_file_size, classify=settings['classify_bangumi'])
+                       realtime_show_file_size=realtime_show_file_size, classify=settings['classify_bangumi'],
+                       plex_info=plex_info)
     except BaseException as e:
         # 兜一下各种奇奇怪怪的错误
         err_print(sn, '下載異常', '發生未知錯誤: '+str(e), status=1)
