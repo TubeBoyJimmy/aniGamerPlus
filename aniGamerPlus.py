@@ -439,6 +439,10 @@ def __download_only(sn, dl_resolution='', dl_save_dir='', realtime_show_file_siz
                 err_print(sn, '下載異常', '異常詳情:\n'+traceback.format_exc(), status=1, display=False)
                 anime.video_size = 0
 
+    # 下載成功, 寫入資料庫 (避免 sn_list 排程重複下載已存在的檔案)
+    insert_db(anime)   # 若記錄已存在會跳過 (IntegrityError)
+    update_db(anime)   # 更新 status, file_size, local_file_path 等
+
     download_cd = threading.Thread(target=download_cd_counter)
     download_cd.start()
 
