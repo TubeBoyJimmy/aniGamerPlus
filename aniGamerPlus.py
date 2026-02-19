@@ -325,8 +325,9 @@ def download_cd_counter():
     thread_limiter.release()  # 并发下载限制器
 
 
-def check_tasks():
-    for sn in sn_dict.keys():
+def check_tasks(sn_subset=None):
+    check_dict = sn_subset if sn_subset is not None else sn_dict
+    for sn in check_dict.keys():
         anime = build_anime(sn)
         if anime['failed']:
             err_print(sn, '更新狀態', '檢查更新失敗, 跳過等待下次檢查', status=1)
@@ -339,14 +340,14 @@ def check_tasks():
         err_print(sn, '更新資訊', '正在檢查《' + anime.get_bangumi_name() + '》')
         episode_list = list(anime.get_episode_list().values())
 
-        if sn_dict[sn]['mode'] == 'all':
+        if check_dict[sn]['mode'] == 'all':
             # 如果用户选择全部下载 download_mode = 'all'
             for ep in episode_list:  # 遍历剧集列表
                 try:
                     db = read_db(ep)
                     #           未下载的   或                设定要上传但是没上传的                         并且  还没在列队中
                     if (db['status'] == 0 or (db['remote_status'] == 0 and settings['upload_to_server'])) and ep not in queue.keys():
-                        queue[ep] = sn_dict[sn]  # 添加至下载列队
+                        queue[ep] = check_dict[sn]  # 添加至下载列队
                 except IndexError:
                     # 如果数据库中尚不存在此条记录
                     if anime.get_sn() == ep:
@@ -358,14 +359,14 @@ def check_tasks():
                             continue
                         new_anime = new_anime['anime']
                     insert_db(new_anime)
-                    queue[ep] = sn_dict[sn]  # 添加至列队
+                    queue[ep] = check_dict[sn]  # 添加至列队
         else:
-            if sn_dict[sn]['mode'] == 'largest-sn':
+            if check_dict[sn]['mode'] == 'largest-sn':
                 # 如果用户选择仅下载最新上传, download_mode = 'largest_sn', 则对 sn 进行排序
                 episode_list.sort()
                 latest_sn = episode_list[-1]
                 # 否则用户选择仅下载最后剧集, download_mode = 'latest', 即下载网页上显示在最右的剧集
-            elif sn_dict[sn]['mode'] == 'single':
+            elif check_dict[sn]['mode'] == 'single':
                 latest_sn = sn  # 适配命令行 sn-list 模式
             else:
                 latest_sn = episode_list[-1]
@@ -373,7 +374,7 @@ def check_tasks():
                 db = read_db(latest_sn)
                 #           未下载的   或                设定要上传但是没上传的                         并且  还没在列队中
                 if (db['status'] == 0 or (db['remote_status'] == 0 and settings['upload_to_server'])) and latest_sn not in queue.keys():
-                    queue[latest_sn] = sn_dict[sn]  # 添加至下载列队
+                    queue[latest_sn] = check_dict[sn]  # 添加至下载列队
             except IndexError:
                 # 如果数据库中尚不存在此条记录
                 if anime.get_sn() == latest_sn:
@@ -385,7 +386,7 @@ def check_tasks():
                         continue
                     new_anime = new_anime['anime']
                 insert_db(new_anime)
-                queue[latest_sn] = sn_dict[sn]
+                queue[latest_sn] = check_dict[sn]
 
         # # sn 解析冷却
         # if settings['parse_sn_cd'] > 0:
@@ -850,6 +851,8 @@ def run_dashboard():
     err_print(0, 'Web控制面板已啓動', dashboard_address, no_sn=True, status=2)
 
 
+from Schedule import AnimeSchedule
+
 signal.signal(signal.SIGINT, user_exit)
 signal.signal(signal.SIGTERM, user_exit)
 settings = Config.read_settings()
@@ -864,6 +867,7 @@ thread_tasks = []
 gost_subprocess = None  # 存放 gost 的 subprocess.Popen 对象, 用于结束时 kill gost
 gost_port = gost_port()  # gost 端口
 sn_dict = Config.read_sn_list()
+anime_schedule = None  # 排程實例, 供 Dashboard 使用
 danmu = settings['danmu']
 
 if __name__ == '__main__':
@@ -1021,6 +1025,18 @@ if __name__ == '__main__':
     if settings['use_dashboard']:
         run_dashboard()
 
+    # 初始化智慧排程
+    anime_schedule = None
+    if settings.get('smart_schedule', False):
+        anime_schedule = AnimeSchedule(
+            settings['ua'],
+            db_path=db_path,
+            schedule_delay=settings.get('schedule_delay', 0)
+        )
+    # 智慧排程啟用時, 初始化為當前時間, 避免啟動時觸發全量 fallback 檢查
+    last_fallback_check = time.time() if settings.get('smart_schedule', False) else 0
+    force_check_triggered = False
+
     while True:
         print()
         err_print(0, '開始更新', no_sn=True)
@@ -1029,8 +1045,75 @@ if __name__ == '__main__':
             sn_dict = Config.read_sn_list()
         if settings['read_config_when_checking_update']:
             settings = Config.read_settings()
+            # 更新排程實例設定
+            if settings.get('smart_schedule', False):
+                if anime_schedule is None:
+                    anime_schedule = AnimeSchedule(
+                        settings['ua'],
+                        db_path=db_path,
+                        schedule_delay=settings.get('schedule_delay', 0)
+                    )
+                else:
+                    anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
+            else:
+                anime_schedule = None
         danmu = settings['danmu'] # 避免手動加入工作時，global 覆寫掉 config 的 danmu 設定
-        check_tasks()  # 检查更新，生成任务列队
+
+        # 智慧排程: 只檢查在更新窗口內的番劇
+        if anime_schedule is not None and settings.get('smart_schedule', False):
+            sns_to_check = {}
+
+            if force_check_triggered and Config.force_check_sns:
+                # 強制檢查模式: 只檢查指定的番劇, 不觸發完整排程
+                for sn in list(Config.force_check_sns):
+                    if sn in sn_dict:
+                        sns_to_check[sn] = sn_dict[sn]
+                    Config.force_check_sns.discard(sn)
+                err_print(0, '強制檢查',
+                          '本次只檢查 ' + str(len(sns_to_check)) + ' 個指定番劇',
+                          no_sn=True)
+            else:
+                # 正常排程檢查
+                anime_schedule.fetch_schedule()
+                now_ts = time.time()
+                fallback_freq = settings.get('schedule_fallback_frequency', 1440) * 60
+                do_fallback = (now_ts - last_fallback_check) >= fallback_freq
+
+                for sn, info in sn_dict.items():
+                    # 準備標題提示用於排程匹配 (sn_list 的 SN 可能與排程表不同)
+                    title_hints = []
+                    plex = info.get('plex')
+                    if plex:
+                        if plex.get('clean_title'):
+                            title_hints.append(plex['clean_title'])
+                        if plex.get('folder_name'):
+                            title_hints.append(plex['folder_name'])
+                    elif info.get('rename'):
+                        title_hints.append(info['rename'])
+
+                    result = anime_schedule.should_check_now(
+                        sn,
+                        window_before=settings.get('schedule_window_before', 30),
+                        window_after=settings.get('schedule_window_after', 120),
+                        title_hints=title_hints if title_hints else None
+                    )
+                    if result is True:
+                        sns_to_check[sn] = info
+                    elif result is None and do_fallback:
+                        sns_to_check[sn] = info
+
+                if do_fallback:
+                    last_fallback_check = now_ts
+
+                scheduled_count = len(sns_to_check)
+                deferred_count = len(sn_dict) - scheduled_count
+                err_print(0, '排程模式',
+                          '本次檢查 ' + str(scheduled_count) + ' 個 (排程命中), 延後 ' + str(deferred_count) + ' 個',
+                          no_sn=True)
+            check_tasks(sns_to_check)
+        else:
+            check_tasks()  # 检查更新，生成任务列队
+
         new_tasks_counter = 0  # 新增任务计数器
         if queue:
             for task_sn in queue.keys():
@@ -1045,5 +1128,9 @@ if __name__ == '__main__':
         err_print(0, '更新資訊', info, no_sn=True)
         err_print(0, '更新终了', no_sn=True)
         print()
+        force_check_triggered = False
         for i in range(settings['check_frequency'] * 60):
+            if Config.force_check_sns:
+                force_check_triggered = True
+                break
             time.sleep(1)  # cool down, 這麽寫是爲了可以 Ctrl+C 馬上退出

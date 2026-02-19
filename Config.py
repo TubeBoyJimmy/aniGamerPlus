@@ -28,6 +28,7 @@ cookie = None
 max_multi_thread = 5
 max_multi_downloading_segment = 5
 tasks_progress_rate = {}  # 储存任务进度, 供面板使用,
+force_check_sns = set()  # 強制檢查的 SN 集合, 供 Dashboard 立即檢查功能使用
 # 格式: {sn: {'rate': 任务进度百分比(float), 'status': 任务状态, 'filename': 文件名} }
 # 任务状态有:  '正在下載' '正在解密合并' '正在移至番劇目錄' '任務失敗, 等待重啓' '等待下載'
 
@@ -145,6 +146,11 @@ def __init_settings():
                 'use_mobile_api': False,
                 'danmu': False,
                 'danmu_ban_words': [],
+                'smart_schedule': False,  # 智慧排程開關
+                'schedule_window_before': 30,  # 更新時間前幾分鐘開始檢查
+                'schedule_window_after': 120,  # 更新時間後幾分鐘繼續檢查
+                'schedule_fallback_frequency': 1440,  # 不在排程表中的番劇檢查間隔(分鐘)
+                'schedule_delay': 0,  # 排程延遲補償(秒)
                 'check_latest_version': True,  # 是否检查新版本
                 'read_sn_list_when_checking_update': True,
                 'read_config_when_checking_update': True,
@@ -390,6 +396,14 @@ def __update_settings(old_settings):  # 升级配置文件
     if 'plex_bangumi_dir' not in new_settings.keys():
         # v18.0 新增 Plex 媒體目標資料夾
         new_settings['plex_bangumi_dir'] = ''
+
+    if 'smart_schedule' not in new_settings.keys():
+        # v18.0 新增智慧排程功能
+        new_settings['smart_schedule'] = False
+        new_settings['schedule_window_before'] = 30
+        new_settings['schedule_window_after'] = 120
+        new_settings['schedule_fallback_frequency'] = 1440
+        new_settings['schedule_delay'] = 0
 
     new_settings['config_version'] = latest_config_version
     with open(config_path, 'w', encoding='utf-8') as f:
