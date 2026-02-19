@@ -37,6 +37,9 @@
 						<a class="nav-link" href="#" data-toggle="modal" data-target="#snList">sn_list</a>
 					</li>
 					<li class="nav-item my-navbar">
+						<a class="nav-link" href="#" data-toggle="modal" data-target="#scheduleInfo">排程資訊</a>
+					</li>
+					<li class="nav-item my-navbar">
 						<button class="btn btn-success" type="button" data-toggle="modal" data-target="#manualTasks">添加手動任務</button>
 					</li>
 				</ul>
@@ -129,7 +132,7 @@
 
 		<!-- sn_list 模态框 -->
 		<div class="modal fade" id="snList">
-			<div class="modal-dialog modal-lg">
+			<div class="modal-dialog" style="max-width: 1100px">
 				<div class="modal-content">
 
 					<!-- 模态框头部 -->
@@ -144,7 +147,7 @@
 							<dt>格式：</dt>
 							<dd><code>
 									@分類(可空)<br>
-									sn碼 下載模式(可空) 	&lt;重命名&gt;(可空) #注釋(可空)
+									sn碼 下載模式(可空) &lt;檔名標題&gt;(可空) {Plex資料夾}(可空) (S季數)(可空) #注釋(可空)
 								</code></dd>
 
 							<dt>説明</dt>
@@ -152,14 +155,63 @@
 							<dd>在一排番劇列表的上方 <kbd>@</kbd> 開頭後面的字符將會作爲番劇的分類名, 番劇會歸類在此分類名的資料夾下</dd>
 							<dd>若單獨 <kbd>@</kbd> 表示不分類</dd>
 							<dd>用 <kbd>&lt;</kbd> 與 <kbd>&gt;</kbd> 將自定義的番劇名框起來, 下載時將會使用這個名字作爲番劇目錄名</dd>
+							<dt>Plex 模式</dt>
+							<dd>用 <kbd>{</kbd> 與 <kbd>}</kbd> 指定 Plex 資料夾名, 啟用 Plex 命名模式 (檔名格式: 標題 S##E##.mp4)</dd>
+							<dd>用 <kbd>(S##)</kbd> 指定季數, 如 <kbd>(S02)</kbd>; 不指定則自動從資料夾名偵測</dd>
+							<dd>用 <kbd>(S##-偏移)</kbd> 指定季數與分界點, 如 <kbd>(S02-11)</kbd>: 集數&gt;11→S02(減11), 集數&le;11→自動歸S01</dd>
+							<dd>若有 <kbd>{}</kbd> 但沒有 <kbd>&lt;&gt;</kbd>, 檔名標題會自動從資料夾名去掉季數標記推導</dd>
 						</dl>
+
+						<!-- 快速新增表單 -->
+						<div class="card mb-3">
+							<div class="card-header"><strong>快速新增</strong></div>
+							<div class="card-body">
+								<div class="form-row mb-2">
+									<div class="col-md-4">
+										<input id="plex_sn_input" type="text" class="form-control" placeholder="SN號碼或巴哈連結" />
+									</div>
+									<div class="col-md-3">
+										<select id="plex_mode_select" class="form-control">
+											<option value="latest">latest (最後一集)</option>
+											<option value="all">all (全部劇集)</option>
+											<option value="largest-sn">largest-sn (最近上傳)</option>
+										</select>
+									</div>
+									<div class="col-md-5">
+										<input id="plex_folder_input" type="text" class="form-control" placeholder="Plex資料夾名 (可空, 填入啟用Plex模式)" />
+									</div>
+								</div>
+								<div class="form-row mb-2">
+									<div class="col-md-4">
+										<input id="plex_title_input" type="text" class="form-control" placeholder="檔名標題 (可空, 自動推導)" />
+									</div>
+									<div class="col-md-2">
+										<input id="plex_season_input" type="number" min="0" step="1" class="form-control" placeholder="季數" />
+									</div>
+									<div class="col-md-2">
+										<input id="plex_ep_offset_input" type="number" min="0" step="1" class="form-control" placeholder="集數偏移" title="巴哈集數減去此值=Plex集數, 如巴哈第13集偏移12→E01" />
+									</div>
+									<div class="col-md-2">
+										<input id="plex_comment_input" type="text" class="form-control" placeholder="註釋 (可空)" />
+									</div>
+									<div class="col-md-2">
+										<button type="button" class="btn btn-success btn-block" onclick="addSnListLine()">加入</button>
+									</div>
+								</div>
+								<div class="form-row">
+									<div class="col">
+										<code id="plex_preview" style="display:block; padding:5px; background:#f8f9fa; border-radius:4px; min-height:1.5em;">&nbsp;</code>
+									</div>
+								</div>
+							</div>
+						</div>
 
 						<form>
 							<div class="input-group mb-3 input-group-lg">
-								<textarea class="form-control" rows="5" id="sn_list"></textarea>
+								<textarea class="form-control" rows="8" id="sn_list"></textarea>
 							</div>
 						</form>
-						
+
 					</div>
 
 					<!-- 模态框底部 -->
@@ -207,6 +259,105 @@
 						<button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
 					</div>
 
+				</div>
+			</div>
+		</div>
+
+		<!-- 排程資訊模态框 -->
+		<div class="modal fade" id="scheduleInfo">
+			<div class="modal-dialog" style="max-width: 1100px">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h4 class="modal-title">排程資訊</h4>
+						<button type="button" class="close" data-dismiss="modal">&times;</button>
+					</div>
+					<div class="modal-body">
+						<p>上次更新: <span id="schedule_last_fetch">-</span>
+							<button type="button" class="btn btn-sm btn-outline-primary ml-2" onclick="loadSchedule()">刷新排程</button>
+						</p>
+						<div id="schedule_error" class="alert alert-warning" style="display:none;"></div>
+
+						<!-- 訂閱表單 -->
+						<div id="subscribe_form" class="card mb-3" style="display:none;">
+							<div class="card-header">
+								<strong>訂閱動畫</strong>
+								<button type="button" class="close" onclick="hideSubscribeForm()">&times;</button>
+							</div>
+							<div class="card-body">
+								<div class="form-row mb-2">
+									<div class="col-md-3">
+										<label class="small">SN 號碼</label>
+										<div class="input-group">
+											<input id="sub_sn" type="text" class="form-control" />
+											<div class="input-group-append">
+												<button class="btn btn-outline-secondary btn-sm" type="button" onclick="fetchFirstSn()">查詢第一集</button>
+											</div>
+										</div>
+										<small id="sub_sn_info" class="text-muted"></small>
+									</div>
+									<div class="col-md-3">
+										<label class="small">下載模式</label>
+										<select id="sub_mode" class="form-control">
+											<option value="latest">latest (最後一集)</option>
+											<option value="all">all (全部劇集)</option>
+											<option value="largest-sn">largest-sn (最近上傳)</option>
+										</select>
+									</div>
+									<div class="col-md-6">
+										<label class="small">Plex 資料夾名</label>
+										<input id="sub_folder" type="text" class="form-control" placeholder="如: 葬送的芙莉蓮 第二季" />
+									</div>
+								</div>
+								<div class="form-row mb-2">
+									<div class="col-md-4">
+										<label class="small">檔名標題 (可空, 自動推導)</label>
+										<input id="sub_title" type="text" class="form-control" placeholder="如: 葬送的芙莉蓮" />
+									</div>
+									<div class="col-md-2">
+										<label class="small">季數</label>
+										<input id="sub_season" type="number" min="0" step="1" class="form-control" placeholder="1" />
+									</div>
+									<div class="col-md-2">
+										<label class="small">集數偏移</label>
+										<input id="sub_ep_offset" type="number" min="0" step="1" class="form-control" placeholder="0" />
+									</div>
+									<div class="col-md-4">
+										<label class="small">註釋</label>
+										<input id="sub_comment" type="text" class="form-control" placeholder="(可空)" />
+									</div>
+								</div>
+								<div class="form-row mb-2">
+									<div class="col">
+										<label class="small">預覽</label>
+										<code id="sub_preview" style="display:block; padding:5px; background:#f8f9fa; border-radius:4px; min-height:1.5em;">&nbsp;</code>
+									</div>
+								</div>
+								<button type="button" class="btn btn-success" onclick="submitSubscribe()">確認訂閱</button>
+								<button type="button" class="btn btn-secondary ml-2" onclick="hideSubscribeForm()">取消</button>
+							</div>
+						</div>
+
+						<div class="table-responsive">
+							<table class="table table-sm table-bordered table-hover" id="schedule_table">
+								<thead class="thead-dark">
+									<tr>
+										<th>星期</th>
+										<th>時間</th>
+										<th>番劇名</th>
+										<th>SN</th>
+										<th>訂閱狀態</th>
+										<th>操作</th>
+									</tr>
+								</thead>
+								<tbody id="schedule_tbody">
+									<tr><td colspan="6" class="text-center text-muted">載入中...</td></tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">關閉</button>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -405,6 +556,78 @@
 						</div>
 						<input id="proxy_passwd" type="password" class="form-control input-group-prepend-form-control" placeholder="沒有放空即可"
 						 autocomplete />
+					</div>
+				</div>
+
+				<div class="row">
+					<h2 class="col">Plex 設定</h2>
+				</div>
+				<div class="row setting-content">
+					<div class="input-group col-md-6 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">Plex 媒體目錄</span>
+						</div>
+						<input id="plex_bangumi_dir" type="text" class="form-control input-group-prepend-form-control" placeholder="空值=使用下載目錄" />
+					</div>
+					<div class="input-group col-md-6 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">自動刷新媒體庫</span>
+							<input id="plex_refresh" type="checkbox" data-toggle="switch" data-on-color="success" data-size="normal" />
+						</div>
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">Plex URL　</span>
+						</div>
+						<input id="plex_url" type="text" class="form-control input-group-prepend-form-control" placeholder="如 192.168.1.1:32400" />
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">Plex Token</span>
+						</div>
+						<input id="plex_token" type="password" class="form-control input-group-prepend-form-control" placeholder="X-Plex-Token" autocomplete />
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">Section ID</span>
+						</div>
+						<input id="plex_section" type="text" class="form-control input-group-prepend-form-control" placeholder="媒體庫 Section 編號" />
+					</div>
+				</div>
+
+				<div class="row">
+					<h2 class="col">排程設定</h2>
+				</div>
+				<div class="row setting-content">
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">智慧排程　　　</span>
+							<input id="smart_schedule" type="checkbox" data-toggle="switch" data-on-color="success" data-size="normal" />
+						</div>
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">更新前檢查窗口</span>
+						</div>
+						<input id="schedule_window_before" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">更新後檢查窗口</span>
+						</div>
+						<input id="schedule_window_after" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">未排程檢查頻率</span>
+						</div>
+						<input id="schedule_fallback_frequency" type="number" min="1" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
+					</div>
+					<div class="input-group col-md-4 my-button">
+						<div class="input-group-prepend">
+							<span class="input-group-text">排程延遲補償　</span>
+						</div>
+						<input id="schedule_delay" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="秒" />
 					</div>
 				</div>
 
