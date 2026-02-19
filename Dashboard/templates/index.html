@@ -31,7 +31,7 @@
 						<a class="nav-link" href="#">自動模式設定</a>
 					</li>
 					<li class="nav-item my-navbar">
-						<a class="nav-link" href="./monitor">任務監控中心</a>
+						<a class="nav-link" href="#" id="toggleMonitor">任務監控中心</a>
 					</li>
 					<li class="nav-item my-navbar">
 						<a class="nav-link" href="#" data-toggle="modal" data-target="#snList">sn_list</a>
@@ -453,6 +453,28 @@
 				</center>
 
 			</form>
+		</div>
+
+		<!-- 任務監控浮動面板 -->
+		<div id="monitorPanel" class="monitor-panel" style="display:none;">
+			<div class="monitor-header">
+				<span class="monitor-title">任務監控</span>
+				<button type="button" class="close" id="closeMonitor" style="color:#fff;opacity:0.8;">&times;</button>
+			</div>
+			<div class="monitor-body">
+				<!-- 任務進度區 -->
+				<div class="monitor-section">
+					<div class="monitor-section-title">下載進度</div>
+					<div id="monitorTasks">
+						<div class="text-muted text-center py-2" id="monitorNoTask">目前無進行中的任務</div>
+					</div>
+				</div>
+				<!-- 日誌區 -->
+				<div class="monitor-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+					<div class="monitor-section-title">最近日誌</div>
+					<div id="monitorLogs" class="monitor-logs"></div>
+				</div>
+			</div>
 		</div>
 
 		<script>

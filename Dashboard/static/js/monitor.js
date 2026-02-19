@@ -1,27 +1,22 @@
 layui.use('element', function(){
 	let element = layui.element;
-	
-	let protocol = window.location.protocol;
-	let ws = protocol.replace('http', 'ws');
-	let tasks_progress_url = ws+'//'+window.location.host+'/data/tasks_progress'+'?token=';
-	
-	// 获取token
-	$.get('data/get_token', function(token){
-		tasks_progress_url += token;
-		
-		let ws = new WebSocket(tasks_progress_url);
-		ws.onmessage = function(evt){
-			let data = $.parseJSON(evt.data);
+	let knownTasks = {};  // 追蹤已顯示的任務卡片
+
+	function fetchProgress() {
+		$.get('data/tasks_progress', function(data){
+			if (typeof data === 'string') {
+				try { data = JSON.parse(data); } catch(e) { return; }
+			}
+
 			if (Object.keys(data).length == 0){
 				$('#no_task').show();
 			} else {
 				$('#no_task').hide();
 				for (let sn in data){
-					
 					if ($('#'+sn).length > 0) {
 						// 如果该任务卡片已存在
 						$("#status"+sn).html(data[sn]["status"]);
-						$("#header"+sn).html(data[sn]["filename"]);						
+						$("#header"+sn).html(data[sn]["filename"]);
 						element.progress(sn, Math.round(data[sn]["rate"])+'%');
 					} else {
 						// 如果该任务卡片不存在
@@ -43,9 +38,23 @@ layui.use('element', function(){
 						$("#task_info_panel").prepend(task_item_templates);
 						element.progress();
 					}
+					knownTasks[sn] = true;
 				}
 			}
-		}
-		
-	});
+
+			// 移除已完成的任務卡片 (不在回傳資料中的)
+			for (let sn in knownTasks) {
+				if (!(sn in data)) {
+					$('#'+sn).remove();
+					delete knownTasks[sn];
+				}
+			}
+		}).fail(function(){
+			// 請求失敗時不做處理, 等下次輪詢
+		});
+	}
+
+	// 立即執行一次, 然後每秒輪詢
+	fetchProgress();
+	setInterval(fetchProgress, 1000);
 });

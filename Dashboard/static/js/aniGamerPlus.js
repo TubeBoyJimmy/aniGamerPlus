@@ -246,3 +246,130 @@ function showSnList(){
 		$("#sn_list").val(data);
 	})
 }
+
+function escapeHtml(str) {
+	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// === 任務監控浮動面板 ===
+
+var monitorInterval = null;
+var logInterval = null;
+var monitorKnownTasks = {};
+var lastLogLine = '';
+
+$(function() {
+	$('#toggleMonitor').on('click', function(e) {
+		e.preventDefault();
+		var panel = $('#monitorPanel');
+		if (panel.is(':visible')) {
+			closeMonitorPanel();
+		} else {
+			openMonitorPanel();
+		}
+	});
+
+	$('#closeMonitor').on('click', function() {
+		closeMonitorPanel();
+	});
+});
+
+function openMonitorPanel() {
+	$('#monitorPanel').show();
+	// 立即載入一次
+	fetchMonitorTasks();
+	fetchMonitorLogs();
+	// 開始輪詢: 任務進度 1 秒, 日誌 2 秒
+	monitorInterval = setInterval(fetchMonitorTasks, 1000);
+	logInterval = setInterval(fetchMonitorLogs, 2000);
+}
+
+function closeMonitorPanel() {
+	$('#monitorPanel').hide();
+	if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
+	if (logInterval) { clearInterval(logInterval); logInterval = null; }
+}
+
+function fetchMonitorTasks() {
+	$.get('data/tasks_progress', function(data) {
+		if (typeof data === 'string') {
+			try { data = JSON.parse(data); } catch(e) { return; }
+		}
+
+		var container = $('#monitorTasks');
+		var hasTask = false;
+
+		for (var sn in data) {
+			hasTask = true;
+			var task = data[sn];
+			var pct = Math.round(task.rate || 0);
+			var existing = container.find('#mt_' + sn);
+
+			if (existing.length > 0) {
+				// 更新
+				existing.find('.monitor-task-name').text(task.filename || 'SN=' + sn);
+				existing.find('.monitor-task-fill').css('width', pct + '%');
+				existing.find('.mt-pct').text(pct + '%');
+				existing.find('.mt-status').text(task.status || '');
+			} else {
+				// 新增
+				var html = '<div class="monitor-task" id="mt_' + sn + '">'
+					+ '<div class="monitor-task-name">' + escapeHtml(task.filename || 'SN=' + sn) + '</div>'
+					+ '<div class="monitor-task-bar"><div class="monitor-task-fill" style="width:' + pct + '%"></div></div>'
+					+ '<div class="monitor-task-info"><span class="mt-status">' + escapeHtml(task.status || '') + '</span><span class="mt-pct">' + pct + '%</span></div>'
+					+ '</div>';
+				container.append(html);
+			}
+			monitorKnownTasks[sn] = true;
+		}
+
+		// 移除已完成的
+		for (var sn in monitorKnownTasks) {
+			if (!(sn in data)) {
+				container.find('#mt_' + sn).remove();
+				delete monitorKnownTasks[sn];
+			}
+		}
+
+		if (hasTask) {
+			$('#monitorNoTask').hide();
+		} else {
+			$('#monitorNoTask').show();
+		}
+	});
+}
+
+function fetchMonitorLogs() {
+	$.get('data/recent_logs?n=80', function(data) {
+		if (typeof data === 'string') {
+			try { data = JSON.parse(data); } catch(e) { return; }
+		}
+		var lines = data.lines || [];
+		// 只在日誌有變化時更新 DOM (比對最後一行)
+		var currentLast = lines.length > 0 ? lines[lines.length - 1] : '';
+		if (currentLast === lastLogLine && lines.length > 0) return;
+		lastLogLine = currentLast;
+
+		var container = $('#monitorLogs');
+		var wasAtBottom = container[0].scrollHeight - container[0].scrollTop - container[0].clientHeight < 30;
+
+		var html = '';
+		for (var i = 0; i < lines.length; i++) {
+			var line = lines[i];
+			var cls = 'monitor-log-line';
+			// 簡易分類: 含「失敗」「ERROR」「錯誤」→ 紅色, 含「完成」「成功」→ 綠色
+			if (/失[敗败]|ERROR|錯誤|错误/.test(line)) {
+				cls += ' log-error';
+			} else if (/完成|成功|Refresh/.test(line)) {
+				cls += ' log-success';
+			}
+			html += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
+		}
+		container.html(html);
+
+		// 自動捲動到底部 (除非使用者正在往上捲)
+		if (wasAtBottom) {
+			container[0].scrollTop = container[0].scrollHeight;
+		}
+	});
+}

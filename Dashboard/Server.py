@@ -11,7 +11,7 @@ from gevent import spawn
 
 import json, sys, os, re, time
 import threading, traceback
-import random, string
+from datetime import datetime
 
 from aniGamerPlus import Config
 from flask import Flask, request, jsonify
@@ -162,37 +162,27 @@ def show_sn_list():
     return Config.get_sn_list_content()
 
 
-@app.route('/data/get_token', methods=['GET'])
-def get_token():
-    global websocket_token
-    # 生成 32 位随机字符串作为token
-    websocket_token = ''.join(random.sample(string.ascii_letters + string.digits, 32))
-    return websocket_token, '200 ok'
+@app.route('/data/tasks_progress', methods=['GET'])
+def tasks_progress():
+    """回傳任務進度資料供前端輪詢 (取代原 WebSocket 方案)"""
+    return jsonify(Config.tasks_progress_rate)
 
 
-@sockets.route('/data/tasks_progress')
-def tasks_progress(ws):
-    # 鉴权
-    global websocket_token
-    token = request.args.get('token')
-    if token != websocket_token:
-        ws.send('Unauthorized')
-        ws.close()
-    else:
-        # 一次性 token
-        websocket_token = ''
-
-    # 推送任务进度数据
-    # https://blog.csdn.net/sinat_32651363/article/details/87912701
-    while not ws.closed:
-        msg = json.dumps(Config.tasks_progress_rate)
-        try:
-            ws.send(msg)
-            time.sleep(1)
-        except WebSocketError:
-            # 连接中断
-            ws.close()
-            break
+@app.route('/data/recent_logs', methods=['GET'])
+def recent_logs():
+    """回傳今日最近 N 行日誌"""
+    n = request.args.get('n', 80, type=int)
+    n = min(n, 300)
+    log_path = os.path.join(Config.get_working_dir(), 'logs', datetime.now().strftime("%Y-%m-%d") + '.log')
+    if not os.path.exists(log_path):
+        return jsonify({'lines': []})
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+        lines = [l.rstrip('\n\r') for l in all_lines[-n:]]
+    except Exception:
+        lines = []
+    return jsonify({'lines': lines})
 
 
 @app.route('/sn_list', methods=['POST'])
