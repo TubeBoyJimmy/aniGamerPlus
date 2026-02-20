@@ -1,707 +1,572 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<script src="../static/js/jquery-3.4.0.min.js"></script>
-		<script src="../static/js/popper.min.js"></script>
-		<link rel="stylesheet" href="../static/css/bootstrap.rfs.min.css">
-		<script src="../static/js/bootstrap.min.js"></script>
-		<link rel="stylesheet" href="../static/css/bootstrap-switch.min.css" />
-		<script src="../static/js/bootstrap-switch.min-3.3.4.js"></script>
-		<link rel="stylesheet" href="../static/css/bootstrap-select.min.css" />
-		<script src="../static/js/bootstrap-select.min.js"></script>
-		<link rel="stylesheet" href="../static/css/fontawesome.all.min.css" />
-		<link rel="stylesheet" href="../static/css/aniGamerPlus.css" />
-		<script src="../static/js/settings_id_list.js"></script>
-		<script src="../static/js/aniGamerPlus.js"></script>
-		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0" />
-		<link rel="shortcut icon" href="../static/img/aniGamerPlus.ico" type="image/x-icon" />
-		<title>aniGamerPlus控制臺</title>
-	</head>
-	<body>
-		<nav class="navbar navbar-expand-md bg-dark navbar-dark fixed-top">
-			<a class="navbar-brand" href="#">aniGamerPlus控制臺</a>
+<html lang="zh-TW">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>(function(){var t=localStorage.getItem('theme');if(t==='light'||(!t&&window.matchMedia('(prefers-color-scheme: light)').matches))document.documentElement.classList.add('light');})()</script>
+	<script src="../static/js/jquery-3.4.0.min.js"></script>
+	<link rel="stylesheet" href="../static/css/fontawesome.all.min.css">
+	<link rel="stylesheet" href="../static/css/aniGamerPlus.css">
+	<script src="../static/js/settings_id_list.js"></script>
+	<script src="../static/js/aniGamerPlus.js"></script>
+	<link rel="shortcut icon" href="../static/img/aniGamerPlus.ico" type="image/x-icon">
+	<title>aniGamerPlus 控制臺</title>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
 
-			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsibleNavbar">
-				<span class="navbar-toggler-icon"></span>
+	<!-- 導航列 -->
+	<nav class="fixed top-0 left-0 right-0 z-40 bg-cyan-700 shadow-lg">
+		<div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+			<a href="#" class="text-lg font-bold text-white whitespace-nowrap">aniGamerPlus 控制臺</a>
+			<!-- 手機版漢堡選單 -->
+			<button id="navToggle" class="md:hidden text-cyan-200 hover:text-white">
+				<i class="fas fa-bars text-xl"></i>
 			</button>
-			<div class="collapse navbar-collapse" id="collapsibleNavbar">
-				<ul class="navbar-nav">
-					<li class="nav-item my-navbar">
-						<a class="nav-link" href="#">自動模式設定</a>
-					</li>
-					<li class="nav-item my-navbar">
-						<a class="nav-link" href="#" id="toggleMonitor">任務監控中心</a>
-					</li>
-					<li class="nav-item my-navbar">
-						<a class="nav-link" href="#" data-toggle="modal" data-target="#snList">sn_list</a>
-					</li>
-					<li class="nav-item my-navbar">
-						<a class="nav-link" href="#" data-toggle="modal" data-target="#scheduleInfo">排程資訊</a>
-					</li>
-					<li class="nav-item my-navbar">
-						<button class="btn btn-success" type="button" data-toggle="modal" data-target="#manualTasks">添加手動任務</button>
-					</li>
-				</ul>
-			</div>
-		</nav>
-
-		<!-- 手动模式模态框 -->
-		<div class="modal fade" id="manualTasks">
-			<div class="modal-dialog modal-lg">
-				<div class="modal-content">
-					<!-- 模态框头部 -->
-					<div class="modal-header">
-						<h4 class="modal-title">手動添加任務</h4>
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-					</div>
-					<!-- 模态框主体 -->
-					<div class="modal-body setting-wrapper">
-						<form>
-							<div class="row setting-content setting-content">
-								<div class="input-group">
-									<div class="input-group-prepend">
-										<span class="input-group-text">影片鏈接</span>
-									</div>
-									<input id="manual_link" type="text" class="form-control input-group-prepend-form-control" />
-								</div>
-							</div>
-
-							<!-- <div class="row"> -->
-
-							<div class="row input-group setting-content">
-								<div class="input-group-prepend ">
-									<span class="input-group-text">下載模式　　　</span>
-									<select id="manual_mode" class="selectpicker show-tick form-control" data-style="btn-gray" data-header="選擇下載模式">
-										<option data-subtext="本集">single</option>
-										<option data-subtext="最後一集">latest</option>
-										<option data-subtext="全部劇集">all</option>
-										<option data-subtext="最近上傳">largest-sn</option>
-									</select>
-								</div>
-							</div>
-
-							<div class="input-group row setting-content">
-								<div class="input-group-prepend ">
-									<span class="input-group-text">下載解析度　　</span>
-									<select id="manual_resolution" class="selectpicker show-tick form-control" data-style="btn-gray" data-header="選擇解析度">
-										<option>1080P</option>
-										<option>720P</option>
-										<option>540P</option>
-										<option>480P</option>
-										<option>360P</option>
-									</select>
-								</div>
-							</div>
-
-							<div class="row input-group setting-content">
-								<div class="input-group-prepend">
-									<span class="input-group-text">建立番劇資料夾</span>
-									<input id="manual_classify" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal"
-									 checked />
-								</div>
-							</div>
-
-							<div class="row input-group setting-content">
-								<div class="input-group-prepend">
-									<span class="input-group-text">下載彈幕　　　</span>
-									<input id="manual_danmu" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-								</div>
-							</div>
-
-							<div class="row input-group setting-content" style="max-width: 15rem;">
-								<div class="input-group-prepend">
-									<span class="input-group-text">最大并發下載數</span>
-								</div>
-								<input id="manual_thread_limit" type="number" min="1" step="1" class="form-control input-group-prepend-form-control"
-								 placeholder="正整數" />
-							</div>
-
-
-
-						</form>
-					</div>
-					<!-- 模态框底部 -->
-					<div class="modal-footer">
-						<button type="button" class="btn btn-success" onclick="readManualConfig()">提交</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
-					</div>
-				</div>
+			<!-- 導航項目 -->
+			<div id="navMenu" class="hidden md:flex items-center gap-4 ml-8
+				max-md:absolute max-md:top-14 max-md:left-0 max-md:right-0 max-md:bg-cyan-700 max-md:border-b max-md:border-cyan-600 max-md:p-4 max-md:flex-col max-md:gap-3">
+				<a href="#" class="text-cyan-100 hover:text-white text-sm transition-colors">自動模式設定</a>
+				<a href="#" onclick="toggleDrawer()" class="text-cyan-100 hover:text-white text-sm transition-colors">任務監控中心</a>
+				<a href="#" onclick="openModal('snListModal')" class="text-cyan-100 hover:text-white text-sm transition-colors">sn_list</a>
+				<a href="#" onclick="openScheduleModal()" class="text-cyan-100 hover:text-white text-sm transition-colors">排程資訊</a>
+				<button onclick="cycleTheme()" class="text-cyan-200 hover:text-white transition-colors" title="切換主題">
+					<i id="themeIcon" class="fas fa-moon"></i>
+				</button>
+				<button onclick="openModal('manualTaskModal')"
+					class="bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-md px-4 py-1.5 transition-colors border border-white/30">
+					新增手動任務
+				</button>
 			</div>
 		</div>
+	</nav>
 
-		<!-- sn_list 模态框 -->
-		<div class="modal fade" id="snList">
-			<div class="modal-dialog" style="max-width: 1100px">
-				<div class="modal-content">
+	<!-- 主要內容 -->
+	<main class="max-w-5xl mx-auto px-4 pt-20 pb-16">
 
-					<!-- 模态框头部 -->
-					<div class="modal-header">
-						<h4 class="modal-title">sn_list</h4>
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-					</div>
-
-					<!-- 模态框主体 -->
-					<div class="modal-body setting-wrapper">
-						<dl>
-							<dt>格式：</dt>
-							<dd><code>
-									@分類(可空)<br>
-									sn碼 下載模式(可空) &lt;檔名標題&gt;(可空) {Plex資料夾}(可空) (S季數)(可空) #注釋(可空)
-								</code></dd>
-
-							<dt>説明</dt>
-							<dd>注釋 <kbd>#</kbd> 後面的所有字符程序均不會讀取, 可以用於標記番劇名</dd>
-							<dd>在一排番劇列表的上方 <kbd>@</kbd> 開頭後面的字符將會作爲番劇的分類名, 番劇會歸類在此分類名的資料夾下</dd>
-							<dd>若單獨 <kbd>@</kbd> 表示不分類</dd>
-							<dd>用 <kbd>&lt;</kbd> 與 <kbd>&gt;</kbd> 將自定義的番劇名框起來, 下載時將會使用這個名字作爲番劇目錄名</dd>
-							<dt>Plex 模式</dt>
-							<dd>用 <kbd>{</kbd> 與 <kbd>}</kbd> 指定 Plex 資料夾名, 啟用 Plex 命名模式 (檔名格式: 標題 S##E##.mp4)</dd>
-							<dd>用 <kbd>(S##)</kbd> 指定季數, 如 <kbd>(S02)</kbd>; 不指定則自動從資料夾名偵測</dd>
-							<dd>用 <kbd>(S##-偏移)</kbd> 指定季數與分界點, 如 <kbd>(S02-11)</kbd>: 集數&gt;11→S02(減11), 集數&le;11→自動歸S01</dd>
-							<dd>若有 <kbd>{}</kbd> 但沒有 <kbd>&lt;&gt;</kbd>, 檔名標題會自動從資料夾名去掉季數標記推導</dd>
-						</dl>
-
-						<!-- 快速新增表單 -->
-						<div class="card mb-3">
-							<div class="card-header"><strong>快速新增</strong></div>
-							<div class="card-body">
-								<div class="form-row mb-2">
-									<div class="col-md-4">
-										<input id="plex_sn_input" type="text" class="form-control" placeholder="SN號碼或巴哈連結" />
-									</div>
-									<div class="col-md-3">
-										<select id="plex_mode_select" class="form-control">
-											<option value="latest">latest (最後一集)</option>
-											<option value="all">all (全部劇集)</option>
-											<option value="largest-sn">largest-sn (最近上傳)</option>
-										</select>
-									</div>
-									<div class="col-md-5">
-										<input id="plex_folder_input" type="text" class="form-control" placeholder="Plex資料夾名 (可空, 填入啟用Plex模式)" />
-									</div>
-								</div>
-								<div class="form-row mb-2">
-									<div class="col-md-4">
-										<input id="plex_title_input" type="text" class="form-control" placeholder="檔名標題 (可空, 自動推導)" />
-									</div>
-									<div class="col-md-2">
-										<input id="plex_season_input" type="number" min="0" step="1" class="form-control" placeholder="季數" />
-									</div>
-									<div class="col-md-2">
-										<input id="plex_ep_offset_input" type="number" min="0" step="1" class="form-control" placeholder="集數偏移" title="巴哈集數減去此值=Plex集數, 如巴哈第13集偏移12→E01" />
-									</div>
-									<div class="col-md-2">
-										<input id="plex_comment_input" type="text" class="form-control" placeholder="註釋 (可空)" />
-									</div>
-									<div class="col-md-2">
-										<button type="button" class="btn btn-success btn-block" onclick="addSnListLine()">加入</button>
-									</div>
-								</div>
-								<div class="form-row">
-									<div class="col">
-										<code id="plex_preview" style="display:block; padding:5px; background:#f8f9fa; border-radius:4px; min-height:1.5em;">&nbsp;</code>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<form>
-							<div class="input-group mb-3 input-group-lg">
-								<textarea class="form-control" rows="8" id="sn_list"></textarea>
-							</div>
-						</form>
-
-					</div>
-
-					<!-- 模态框底部 -->
-					<div class="modal-footer">
-						<button type="button" class="btn btn-success" onclick="postSnList()">提交</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
-					</div>
-
+		<!-- 路徑設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">路徑設定</h2>
+			<div class="grid grid-cols-1 gap-3">
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">下載目錄</label>
+					<input id="bangumi_dir" type="text" placeholder="放空則存放於程式所在資料夾"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm placeholder-gray-500 outline-none hover:border-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">暫存目錄</label>
+					<input id="temp_dir" type="text" placeholder="放空則存放於程式所在資料夾"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm placeholder-gray-500 outline-none hover:border-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
 				</div>
 			</div>
-		</div>
+		</section>
 
-
-		<!-- 提交请求模态框 -->
-		<div class="modal fade" id="uploadStatus">
-			<div class="modal-dialog modal-sm" role="document">
-				<div class="modal-content">
-
-					<!-- 模态框头部 -->
-					<div class="modal-header">
-						<h4 class="modal-title">提交結果</h4>
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-					</div>
-
-					<!-- 模态框主体 -->
-					<div class="modal-body setting-wrapper">
-						<center>
-							<div id="uploadOk" style="display: none;">
-								<i class="far fa-check-circle fa-4x" style="color: #28A745;"></i>
-								<p class="upload-status">配置已成功提交</p>
-							</div>
-
-							<div id="uploadFailed" style="display: block;">
-								<i class="fas fa-exclamation-circle fa-4x" style="color: #DC3545;"></i>
-								<p class="upload-status">配置提交失敗</p>
-							</div>
-
-
-						</center>
-
-					</div>
-
-					<!-- 模态框底部 -->
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
-					</div>
-
+		<!-- 下載設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">下載設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<!-- Toggle 類 -->
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">建立番劇資料夾</label>
+					<label class="toggle-switch"><input type="checkbox" id="classify_bangumi"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">鎖定解析度</label>
+					<label class="toggle-switch"><input type="checkbox" id="lock_resolution"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">分段下載模式</label>
+					<label class="toggle-switch"><input type="checkbox" id="segment_download_mode"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">檔名添加番劇名</label>
+					<label class="toggle-switch"><input type="checkbox" id="add_bangumi_name_to_video_filename"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">檔名添加解析度</label>
+					<label class="toggle-switch"><input type="checkbox" id="add_resolution_to_video_filename"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">模擬手機端解析</label>
+					<label class="toggle-switch"><input type="checkbox" id="use_mobile_api"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載彈幕</label>
+					<label class="toggle-switch"><input type="checkbox" id="danmu"><div class="toggle-slider"></div></label>
+				</div>
+				<!-- Select 類 -->
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載解析度</label>
+					<select id="download_resolution"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<option>1080P</option><option>720P</option><option>540P</option><option>480P</option><option>360P</option>
+					</select>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">預設下載模式</label>
+					<select id="default_download_mode"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<option value="latest">latest (最後一集)</option>
+						<option value="all">all (全部劇集)</option>
+						<option value="largest-sn">largest-sn (最近上傳)</option>
+					</select>
+				</div>
+				<!-- Number 類 -->
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新間隔</label>
+					<input id="check_frequency" type="number" min="1" step="1" placeholder="分鐘"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">最大並行下載數</label>
+					<input id="multi-thread" type="number" min="1" step="1" placeholder="正整數"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">最大並行分段數</label>
+					<input id="multi_downloading_segment" type="number" min="1" step="1" placeholder="正整數"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">影片檔名前綴</label>
+					<input id="customized_video_filename_prefix" type="text"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">影片檔名後綴</label>
+					<input id="customized_video_filename_suffix" type="text"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載冷卻 (秒)</label>
+					<input id="download_cd" type="number" min="0" step="1" placeholder="正整數"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">SN 解析冷卻 (秒)</label>
+					<input id="parse_sn_cd" type="number" min="0" step="1" placeholder="正整數"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
 			</div>
-		</div>
+			<!-- UA 獨立一行 -->
+			<div class="flex items-center gap-3 mt-4">
+				<label class="w-32 shrink-0 text-sm text-gray-400 text-right">請求 UA</label>
+				<input id="ua" type="text" placeholder="若有使用 cookie 請與取得 cookie 的瀏覽器保持一致"
+					class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				<button type="button" onclick="getUA()"
+					class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-3 py-2 whitespace-nowrap transition-colors">取得當前 UA</button>
+			</div>
+		</section>
 
-		<!-- 排程資訊模态框 -->
-		<div class="modal fade" id="scheduleInfo">
-			<div class="modal-dialog" style="max-width: 1100px">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h4 class="modal-title">排程資訊</h4>
-						<button type="button" class="close" data-dismiss="modal">&times;</button>
-					</div>
-					<div class="modal-body">
-						<p>上次更新: <span id="schedule_last_fetch">-</span>
-							<button type="button" class="btn btn-sm btn-outline-primary ml-2" onclick="loadSchedule()">刷新排程</button>
-						</p>
-						<div id="schedule_error" class="alert alert-warning" style="display:none;"></div>
-
-						<!-- 訂閱表單 -->
-						<div id="subscribe_form" class="card mb-3" style="display:none;">
-							<div class="card-header">
-								<strong>訂閱動畫</strong>
-								<button type="button" class="close" onclick="hideSubscribeForm()">&times;</button>
-							</div>
-							<div class="card-body">
-								<div class="form-row mb-2">
-									<div class="col-md-3">
-										<label class="small">SN 號碼</label>
-										<div class="input-group">
-											<input id="sub_sn" type="text" class="form-control" />
-											<div class="input-group-append">
-												<button class="btn btn-outline-secondary btn-sm" type="button" onclick="fetchFirstSn()">查詢第一集</button>
-											</div>
-										</div>
-										<small id="sub_sn_info" class="text-muted"></small>
-									</div>
-									<div class="col-md-3">
-										<label class="small">下載模式</label>
-										<select id="sub_mode" class="form-control">
-											<option value="latest">latest (最後一集)</option>
-											<option value="all">all (全部劇集)</option>
-											<option value="largest-sn">largest-sn (最近上傳)</option>
-										</select>
-									</div>
-									<div class="col-md-6">
-										<label class="small">Plex 資料夾名</label>
-										<input id="sub_folder" type="text" class="form-control" placeholder="如: 葬送的芙莉蓮 第二季" />
-									</div>
-								</div>
-								<div class="form-row mb-2">
-									<div class="col-md-4">
-										<label class="small">檔名標題 (可空, 自動推導)</label>
-										<input id="sub_title" type="text" class="form-control" placeholder="如: 葬送的芙莉蓮" />
-									</div>
-									<div class="col-md-2">
-										<label class="small">季數</label>
-										<input id="sub_season" type="number" min="0" step="1" class="form-control" placeholder="1" />
-									</div>
-									<div class="col-md-2">
-										<label class="small">集數偏移</label>
-										<input id="sub_ep_offset" type="number" min="0" step="1" class="form-control" placeholder="0" />
-									</div>
-									<div class="col-md-4">
-										<label class="small">註釋</label>
-										<input id="sub_comment" type="text" class="form-control" placeholder="(可空)" />
-									</div>
-								</div>
-								<div class="form-row mb-2">
-									<div class="col">
-										<label class="small">預覽</label>
-										<code id="sub_preview" style="display:block; padding:5px; background:#f8f9fa; border-radius:4px; min-height:1.5em;">&nbsp;</code>
-									</div>
-								</div>
-								<button type="button" class="btn btn-success" onclick="submitSubscribe()">確認訂閱</button>
-								<button type="button" class="btn btn-secondary ml-2" onclick="hideSubscribeForm()">取消</button>
-							</div>
-						</div>
-
-						<div class="table-responsive">
-							<table class="table table-sm table-bordered table-hover" id="schedule_table">
-								<thead class="thead-dark">
-									<tr>
-										<th>星期</th>
-										<th>時間</th>
-										<th>番劇名</th>
-										<th>SN</th>
-										<th>訂閱狀態</th>
-										<th>操作</th>
-									</tr>
-								</thead>
-								<tbody id="schedule_tbody">
-									<tr><td colspan="6" class="text-center text-muted">載入中...</td></tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">關閉</button>
-					</div>
+		<!-- 代理設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">代理設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">代理總開關</label>
+					<label class="toggle-switch"><input type="checkbox" id="use_proxy"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">選擇協定</label>
+					<select id="proxy_protocol"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<option>SOCKS5</option><option>SOCKS5H</option><option>HTTP</option><option>HTTPS</option>
+					</select>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">伺服器 IP</label>
+					<input id="proxy_ip" type="text" placeholder="127.0.0.1"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">Port</label>
+					<input id="proxy_port" type="text" placeholder="1080"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">使用者名稱</label>
+					<input id="proxy_user" type="text" placeholder="沒有則放空"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-28 shrink-0 text-sm text-gray-400 text-right">密碼</label>
+					<input id="proxy_passwd" type="password" placeholder="沒有則放空" autocomplete="off"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
 			</div>
+		</section>
+
+		<!-- Plex 設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">Plex 設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex 媒體目錄</label>
+					<input id="plex_bangumi_dir" type="text" placeholder="空值 = 使用下載目錄"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">自動刷新媒體庫</label>
+					<label class="toggle-switch"><input type="checkbox" id="plex_refresh"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex URL</label>
+					<input id="plex_url" type="text" placeholder="如 192.168.1.1:32400"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex Token</label>
+					<input id="plex_token" type="password" placeholder="X-Plex-Token" autocomplete="off"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Section ID</label>
+					<input id="plex_section" type="text" placeholder="媒體庫 Section 編號"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+			</div>
+		</section>
+
+		<!-- 排程設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">排程設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">智慧排程</label>
+					<label class="toggle-switch"><input type="checkbox" id="smart_schedule"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新前檢查窗口</label>
+					<input id="schedule_window_before" type="number" min="0" step="1" placeholder="分鐘"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新後檢查窗口</label>
+					<input id="schedule_window_after" type="number" min="0" step="1" placeholder="分鐘"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">未排程檢查頻率</label>
+					<input id="schedule_fallback_frequency" type="number" min="1" step="1" placeholder="分鐘"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">排程延遲補償</label>
+					<input id="schedule_delay" type="number" min="0" step="1" placeholder="秒"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+			</div>
+		</section>
+
+		<!-- 其他 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">其他</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">啟動時檢查更新</label>
+					<label class="toggle-switch"><input type="checkbox" id="check_latest_version"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取 sn_list</label>
+					<label class="toggle-switch"><input type="checkbox" id="read_sn_list_when_checking_update"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取設定檔</label>
+					<label class="toggle-switch"><input type="checkbox" id="read_config_when_checking_update"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">記錄日誌</label>
+					<label class="toggle-switch"><input type="checkbox" id="save_logs"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">日誌數量</label>
+					<input id="quantity_of_logs" type="number" min="1" step="1" placeholder="正整數，每天一個日誌"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+			</div>
+		</section>
+
+		<!-- 儲存/重載 -->
+		<div class="flex justify-center gap-4 mt-8">
+			<button type="button" onclick="readSettings()"
+				class="bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-md px-8 py-2.5 transition-colors">儲存</button>
+			<button type="button" onclick="reloadSetting()"
+				class="bg-red-700 hover:bg-red-600 text-white font-medium rounded-md px-8 py-2.5 transition-colors">重新載入</button>
 		</div>
+	</main>
 
-		<!-- 自动模式配置界面主体 -->
-		<div class="setting-wrapper mx-auto" style="padding-top: 70px;">
-			<form>
-				<div class="row">
-					<h2 class="col">路徑設定</h2>
+	<!-- ====== Modals ====== -->
+
+	<!-- 手動任務 Modal -->
+	<div id="manualTaskModal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-16 px-4">
+		<div class="fixed inset-0 bg-black/60" onclick="closeModal('manualTaskModal')"></div>
+		<div class="relative w-full max-w-2xl bg-gray-900 rounded-md shadow-2xl border border-gray-700">
+			<div class="flex items-center justify-between p-4 border-b border-gray-700">
+				<h3 class="text-lg font-bold text-gray-100">手動新增任務</h3>
+				<button onclick="closeModal('manualTaskModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+			</div>
+			<div class="p-5 space-y-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">影片連結</label>
+					<input id="manual_link" type="text" placeholder="巴哈姆特動畫瘋連結或 SN 號碼"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
-				<div class="row setting-content">
-					<div class="input-group">
-						<div class="input-group-prepend">
-							<span class="input-group-text">下載目錄</span>
-						</div>
-						<input id="bangumi_dir" type="text" class="form-control input-group-prepend-form-control" placeholder="放空則存放於程式所在資料夾" />
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載模式</label>
+					<select id="manual_mode"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<option value="single">single (本集)</option>
+						<option value="latest">latest (最後一集)</option>
+						<option value="all">all (全部劇集)</option>
+						<option value="largest-sn">largest-sn (最近上傳)</option>
+					</select>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載解析度</label>
+					<select id="manual_resolution"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<option>1080P</option><option>720P</option><option>540P</option><option>480P</option><option>360P</option>
+					</select>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">建立番劇資料夾</label>
+					<label class="toggle-switch"><input type="checkbox" id="manual_classify" checked><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載彈幕</label>
+					<label class="toggle-switch"><input type="checkbox" id="manual_danmu"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">最大並行下載數</label>
+					<input id="manual_thread_limit" type="number" min="1" step="1" placeholder="正整數"
+						class="w-32 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+			</div>
+			<div class="flex justify-end gap-2 p-4 border-t border-gray-700">
+				<button onclick="readManualConfig()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-md px-5 py-2 transition-colors">提交</button>
+				<button onclick="closeModal('manualTaskModal')" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-5 py-2 transition-colors">關閉</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- sn_list Modal -->
+	<div id="snListModal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-10 px-4">
+		<div class="fixed inset-0 bg-black/60" onclick="closeModal('snListModal')"></div>
+		<div class="relative w-full max-w-4xl bg-gray-900 rounded-md shadow-2xl border border-gray-700 max-h-[90vh] flex flex-col">
+			<div class="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
+				<h3 class="text-lg font-bold text-gray-100">sn_list</h3>
+				<button onclick="closeModal('snListModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+			</div>
+			<div class="p-5 overflow-y-auto space-y-4">
+				<!-- 格式説明 -->
+				<details class="bg-gray-800/50 rounded-md border border-gray-700">
+					<summary class="px-4 py-2 text-sm text-gray-300 cursor-pointer hover:text-white">格式説明</summary>
+					<div class="px-4 pb-3 text-xs text-gray-400 space-y-1">
+						<p><code class="text-blue-400">@分類</code> — 分類名稱，番劇會歸類在此資料夾下；單獨 <code class="text-blue-400">@</code> 表示不分類</p>
+						<p><code class="text-blue-400">SN 模式 &lt;標題&gt; {Plex資料夾} (S季數) # 註釋</code></p>
+						<p><code class="text-blue-400">{資料夾}</code> — 啟用 Plex 命名 (檔名: 標題 S##E##.mp4)</p>
+						<p><code class="text-blue-400">(S02-11)</code> — 季數 + 集數偏移：集數 &gt; 11 → S02 (減 11)，集數 &le; 11 → 自動 S01</p>
 					</div>
-				</div>
-				<div class="row setting-content ">
-					<div class="input-group">
-						<div class="input-group-prepend">
-							<span class="input-group-text">暫存目錄</span>
-						</div>
-						<input id="temp_dir" type="text" class="form-control input-group-prepend-form-control" placeholder="放空則存放於程式所在資料夾" />
+				</details>
+
+				<!-- 快速新增 -->
+				<div class="bg-gray-800/50 rounded-md border border-gray-700 p-4">
+					<h4 class="text-sm font-bold text-gray-300 mb-3">快速新增</h4>
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+						<input id="plex_sn_input" type="text" placeholder="SN 或巴哈連結"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-1">
+						<select id="plex_mode_select"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+							<option value="latest">latest</option><option value="all">all</option><option value="largest-sn">largest-sn</option>
+						</select>
+						<input id="plex_folder_input" type="text" placeholder="Plex 資料夾 (可空)"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-2">
+					</div>
+					<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
+						<input id="plex_title_input" type="text" placeholder="檔名標題 (可空)"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-2">
+						<input id="plex_season_input" type="number" min="0" step="1" placeholder="季數"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<input id="plex_ep_offset_input" type="number" min="0" step="1" placeholder="集數偏移"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<input id="plex_comment_input" type="text" placeholder="註釋"
+							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+					</div>
+					<div class="flex items-center gap-2">
+						<code id="plex_preview" class="flex-1 bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em]">&nbsp;</code>
+						<button type="button" onclick="addSnListLine()"
+							class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-md px-4 py-1.5 transition-colors">加入</button>
 					</div>
 				</div>
 
-				<div class="row">
-					<h2 class="col">下載設定</h2>
+				<!-- textarea -->
+				<textarea id="sn_list" rows="10"
+					class="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm font-mono outline-none hover:border-gray-500 focus:border-blue-500 transition-colors resize-y"></textarea>
+			</div>
+			<div class="flex justify-end gap-2 p-4 border-t border-gray-700 shrink-0">
+				<button onclick="postSnList()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-md px-5 py-2 transition-colors">儲存</button>
+				<button onclick="closeModal('snListModal')" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-5 py-2 transition-colors">關閉</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- 提交結果 Modal -->
+	<div id="uploadStatusModal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-32 px-4">
+		<div class="fixed inset-0 bg-black/60" onclick="closeModal('uploadStatusModal')"></div>
+		<div class="relative w-full max-w-sm bg-gray-900 rounded-md shadow-2xl border border-gray-700">
+			<div class="flex items-center justify-between p-4 border-b border-gray-700">
+				<h3 class="text-lg font-bold text-gray-100">提交結果</h3>
+				<button onclick="closeModal('uploadStatusModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+			</div>
+			<div class="p-8 text-center">
+				<div id="uploadOk" style="display:none;">
+					<i class="far fa-check-circle fa-4x text-green-500"></i>
+					<p class="mt-3 text-lg font-bold text-gray-100">設定已成功儲存</p>
 				</div>
-				<div class="row setting-content">
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">建立番劇資料夾</span>
-							<input id="classify_bangumi" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
+				<div id="uploadFailed" style="display:none;">
+					<i class="fas fa-exclamation-circle fa-4x text-red-500"></i>
+					<p class="mt-3 text-lg font-bold text-gray-100">設定儲存失敗</p>
+				</div>
+			</div>
+			<div class="flex justify-end p-4 border-t border-gray-700">
+				<button onclick="closeModal('uploadStatusModal')" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-5 py-2 transition-colors">關閉</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- 排程資訊 Modal -->
+	<div id="scheduleModal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-10 px-4">
+		<div class="fixed inset-0 bg-black/60" onclick="closeModal('scheduleModal')"></div>
+		<div class="relative w-full max-w-5xl bg-gray-900 rounded-md shadow-2xl border border-gray-700 max-h-[90vh] flex flex-col">
+			<div class="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
+				<h3 class="text-lg font-bold text-gray-100">排程資訊</h3>
+				<button onclick="closeModal('scheduleModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+			</div>
+			<div class="p-5 overflow-y-auto">
+				<div class="flex items-center gap-3 mb-4">
+					<span class="text-sm text-gray-400">上次更新：<span id="schedule_last_fetch" class="text-gray-200">-</span></span>
+					<button type="button" onclick="loadSchedule()"
+						class="bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-md px-3 py-1 transition-colors">刷新排程</button>
+				</div>
+				<div id="schedule_error" class="hidden bg-yellow-900/30 border border-yellow-700 text-yellow-300 rounded-md px-4 py-2 text-sm mb-4"></div>
+
+				<!-- 訂閱表單 -->
+				<div id="subscribe_form" class="hidden bg-gray-800/50 rounded-md border border-gray-700 p-4 mb-4">
+					<div class="flex items-center justify-between mb-3">
+						<h4 class="text-sm font-bold text-gray-300">訂閱動畫</h4>
+						<button onclick="hideSubscribeForm()" class="text-gray-400 hover:text-white text-xl">&times;</button>
 					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">鎖定解析度　　</span>
-							<input id="lock_resolution" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+						<div>
+							<label class="text-sm text-gray-400">SN 號碼</label>
+							<div class="flex gap-1">
+								<input id="sub_sn" type="text"
+									class="flex-1 bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+								<button onclick="fetchFirstSn()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-md px-2 py-1 whitespace-nowrap transition-colors">查詢第一集</button>
+							</div>
+							<small id="sub_sn_info" class="text-xs text-gray-500"></small>
 						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">分段下載模式　</span>
-							<input id="segment_download_mode" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">檔名添加番劇名</span>
-							<input id="add_bangumi_name_to_video_filename" type="checkbox" data-toggle="switch" data-on-color="success"
-							 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">檔名添加解析度</span>
-							<input id="add_resolution_to_video_filename" type="checkbox" data-toggle="switch" data-on-color="success"
-							 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">模擬手機端解析</span>
-							<input id="use_mobile_api" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">下載彈幕　　　</span>
-							<input id="danmu" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">下載解析度　　</span>
-							<select id="download_resolution" class="selectpicker show-tick form-control" data-style="btn-gray" data-header="選擇解析度">
-								<option>1080P</option>
-								<option>720P</option>
-								<option>540P</option>
-								<option>480P</option>
-								<option>360P</option>
+						<div>
+							<label class="text-sm text-gray-400">下載模式</label>
+							<select id="sub_mode"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+								<option value="latest">latest (最後一集)</option>
+								<option value="all">all (全部劇集)</option>
+								<option value="largest-sn">largest-sn (最近上傳)</option>
 							</select>
 						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">默認下載模式　</span>
-							<select id="default_download_mode" class="selectpicker show-tick form-control" data-style="btn-gray" data-header="選擇下載模式">
-								<option data-subtext="最後一集">latest</option>
-								<option data-subtext="全部劇集">all</option>
-								<option data-subtext="最近上傳">largest-sn</option>
-							</select>
+						<div>
+							<label class="text-sm text-gray-400">Plex 資料夾名</label>
+							<input id="sub_folder" type="text" placeholder="如：葬送的芙莉蓮 第二季"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">更新間隔　　　</span>
+					<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+						<div>
+							<label class="text-sm text-gray-400">檔名標題 (可空)</label>
+							<input id="sub_title" type="text"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
-						<input id="check_frequency" type="number" min="1" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="單位分鐘" />
+						<div>
+							<label class="text-sm text-gray-400">季數</label>
+							<input id="sub_season" type="number" min="0" step="1" placeholder="1"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">集數偏移</label>
+							<input id="sub_ep_offset" type="number" min="0" step="1" placeholder="0"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">註釋</label>
+							<input id="sub_comment" type="text" placeholder="(可空)"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
 					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">最大并發下載數</span>
-						</div>
-						<input id="multi-thread" type="number" min="1" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="正整數" />
+					<div class="mb-3">
+						<label class="text-sm text-gray-400">預覽</label>
+						<code id="sub_preview" class="block bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em]">&nbsp;</code>
 					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">最大并發分段數</span>
-						</div>
-						<input id="multi_downloading_segment" type="number" min="1" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="正整數" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">影片檔名前綴　</span>
-						</div>
-						<input id="customized_video_filename_prefix" type="text" class="form-control input-group-prepend-form-control" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">影片檔名後綴　</span>
-						</div>
-						<input id="customized_video_filename_suffix" type="text" class="form-control input-group-prepend-form-control" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">下載冷卻時間(秒)</span>
-						</div>
-						<input id="download_cd" type="number" min="0" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="正整數" />
-					</div>
-                    <div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">SN解析冷卻時間(秒)</span>
-						</div>
-						<input id="parse_sn_cd" type="number" min="0" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="正整數" />
-					</div>
-					<div class="input-group col-md-8 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">請求UA　　　　</span>
-						</div>
-						<input id="ua" type="text" class="form-control input-group-prepend-form-control" placeholder="若有使用cookie請與取得cookie的瀏覽器保持一致" />
-						<button type="button" class="btn btn-dark" onclick="getUA()">取得當前UA</button>
+					<div class="flex gap-2">
+						<button onclick="submitSubscribe()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-md px-4 py-1.5 transition-colors">確認訂閱</button>
+						<button onclick="hideSubscribeForm()" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-4 py-1.5 transition-colors">取消</button>
 					</div>
 				</div>
 
-				<div class="row">
-					<h2 class="col">代理設定</h2>
+				<!-- 排程表格 -->
+				<div id="schedule_scroll" class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="bg-gray-800 text-gray-400 text-left">
+								<th class="px-3 py-2 rounded-tl-md">時間</th>
+								<th class="px-3 py-2">番劇名</th>
+								<th class="px-3 py-2 w-16">SN</th>
+								<th class="px-3 py-2">訂閱狀態</th>
+								<th class="px-3 py-2 rounded-tr-md">操作</th>
+							</tr>
+						</thead>
+						<tbody id="schedule_tbody" class="divide-y divide-gray-800">
+							<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>
+						</tbody>
+					</table>
 				</div>
-				<div class="row setting-content">
-					<div class="input-group col-md-12 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">代理總開關</span>
-							<input id="use_proxy" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">選擇協議　</span>
-							<select id="proxy_protocol" class="selectpicker show-tick form-control" data-style="btn-gray" data-header="選擇協議">
-								<option>SOCKS5</option>
-								<option>SOCKS5H</option>
-								<option>HTTP</option>
-								<option>HTTPS</option>
-							</select>
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">伺服器IP</span>
-						</div>
-						<input id="proxy_ip" type="text" class="form-control input-group-prepend-form-control" placeholder="127.0.0.1" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">Port</span>
-						</div>
-						<input id="proxy_port" type="text" class="form-control input-group-prepend-form-control" placeholder="1080" />
-					</div>
-					<div class="input-group col-md-6 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">用戶名</span>
-						</div>
-						<input id="proxy_user" type="text" class="form-control input-group-prepend-form-control" placeholder="沒有放空即可" />
-					</div>
-					<div class="input-group col-md-6 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">密碼</span>
-						</div>
-						<input id="proxy_passwd" type="password" class="form-control input-group-prepend-form-control" placeholder="沒有放空即可"
-						 autocomplete />
-					</div>
-				</div>
-
-				<div class="row">
-					<h2 class="col">Plex 設定</h2>
-				</div>
-				<div class="row setting-content">
-					<div class="input-group col-md-6 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">Plex 媒體目錄</span>
-						</div>
-						<input id="plex_bangumi_dir" type="text" class="form-control input-group-prepend-form-control" placeholder="空值=使用下載目錄" />
-					</div>
-					<div class="input-group col-md-6 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">自動刷新媒體庫</span>
-							<input id="plex_refresh" type="checkbox" data-toggle="switch" data-on-color="success" data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">Plex URL　</span>
-						</div>
-						<input id="plex_url" type="text" class="form-control input-group-prepend-form-control" placeholder="如 192.168.1.1:32400" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">Plex Token</span>
-						</div>
-						<input id="plex_token" type="password" class="form-control input-group-prepend-form-control" placeholder="X-Plex-Token" autocomplete />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">Section ID</span>
-						</div>
-						<input id="plex_section" type="text" class="form-control input-group-prepend-form-control" placeholder="媒體庫 Section 編號" />
-					</div>
-				</div>
-
-				<div class="row">
-					<h2 class="col">排程設定</h2>
-				</div>
-				<div class="row setting-content">
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">智慧排程　　　</span>
-							<input id="smart_schedule" type="checkbox" data-toggle="switch" data-on-color="success" data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">更新前檢查窗口</span>
-						</div>
-						<input id="schedule_window_before" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">更新後檢查窗口</span>
-						</div>
-						<input id="schedule_window_after" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">未排程檢查頻率</span>
-						</div>
-						<input id="schedule_fallback_frequency" type="number" min="1" step="1" class="form-control input-group-prepend-form-control" placeholder="分鐘" />
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">排程延遲補償　</span>
-						</div>
-						<input id="schedule_delay" type="number" min="0" step="1" class="form-control input-group-prepend-form-control" placeholder="秒" />
-					</div>
-				</div>
-
-				<div class="row">
-					<h2 class="col">其他</h2>
-				</div>
-				<div class="row setting-content">
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">啓動時檢查更新</span>
-							<input id="check_latest_version" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">每次檢查讀取sn_list</span>
-							<input id="read_sn_list_when_checking_update" type="checkbox" data-toggle="switch" data-on-color="success"
-							 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">每次檢查讀取配置</span>
-							<input id="read_config_when_checking_update" type="checkbox" data-toggle="switch" data-on-color="success"
-							 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">記錄日志</span>
-							<input id="save_logs" type="checkbox" data-toggle="switch" data-on-color="success" 　data-size="normal" />
-						</div>
-					</div>
-					<div class="input-group col-md-4 my-button">
-						<div class="input-group-prepend">
-							<span class="input-group-text">日志數量</span>
-						</div>
-						<input id="quantity_of_logs" type="number" min="1" step="1" class="form-control input-group-prepend-form-control"
-						 placeholder="正整數, 每天一個日志" />
-					</div>
-				</div>
-				<br /><br />
-				<center>
-					<button type="button" class="btn btn-success" onclick="readSettings()">保存</button>
-					<button type="button" class="btn btn-danger" onclick="reloadSetting()">重載配置</button>
-				</center>
-
-			</form>
-		</div>
-
-		<!-- 任務監控浮動面板 -->
-		<div id="monitorPanel" class="monitor-panel" style="display:none;">
-			<div class="monitor-header">
-				<span class="monitor-title">任務監控</span>
-				<button type="button" class="close" id="closeMonitor" style="color:#fff;opacity:0.8;">&times;</button>
 			</div>
-			<div class="monitor-body">
+			<div class="flex justify-end p-4 border-t border-gray-700 shrink-0">
+				<button onclick="closeModal('scheduleModal')" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-5 py-2 transition-colors">關閉</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- 底部監控抽屜 -->
+	<div id="monitorDrawer" class="fixed bottom-0 left-0 right-0 z-40 transition-all">
+		<!-- 狀態列 -->
+		<div class="bg-gray-900 border-t border-gray-700 cursor-pointer select-none" onclick="toggleDrawer()">
+			<div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<i class="fas fa-chevron-up text-gray-400 text-xs transition-transform duration-300" id="drawerArrow"></i>
+					<span class="text-sm text-gray-300">任務監控</span>
+					<span id="drawerTaskCount" class="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5 hidden">0</span>
+				</div>
+			</div>
+		</div>
+		<!-- 展開內容 -->
+		<div id="drawerContent" class="bg-gray-900 overflow-hidden" style="max-height:0; transition: max-height 0.3s ease;">
+			<div class="max-w-5xl mx-auto border-t border-gray-800 p-4 overflow-y-auto" style="max-height:45vh;">
 				<!-- 任務進度區 -->
-				<div class="monitor-section">
-					<div class="monitor-section-title">下載進度</div>
+				<div class="mb-4">
+					<h4 class="text-sm font-medium text-gray-400 mb-2">下載進度</h4>
 					<div id="monitorTasks">
-						<div class="text-muted text-center py-2" id="monitorNoTask">目前無進行中的任務</div>
+						<div class="text-gray-500 text-center py-3 text-sm" id="monitorNoTask">目前無進行中的任務</div>
 					</div>
 				</div>
 				<!-- 日誌區 -->
-				<div class="monitor-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
-					<div class="monitor-section-title">最近日誌</div>
+				<div>
+					<h4 class="text-sm font-medium text-gray-400 mb-2">最近日誌</h4>
 					<div id="monitorLogs" class="monitor-logs"></div>
 				</div>
 			</div>
 		</div>
+	</div>
 
-		<script>
-			$('[data-toggle="switch"]').bootstrapSwitch();
-		</script>
-	</body>
+</body>
 </html>

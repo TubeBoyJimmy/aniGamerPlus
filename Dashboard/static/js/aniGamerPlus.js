@@ -1,4 +1,7 @@
-var dataArrays; //用户配置json
+// aniGamerPlus Dashboard - 主要前端邏輯
+// 所有 Bootstrap 依賴已移除，改用原生 DOM + jQuery AJAX
+
+var dataArrays; // 使用者設定 JSON
 var proxy_protocol;
 var proxy_ip;
 var proxy_port;
@@ -6,22 +9,67 @@ var proxy_user = '';
 var proxy_passwd = '';
 id_list.push('proxy_protocol', 'proxy_ip', 'proxy_port', 'proxy_user', 'proxy_passwd');
 
+// === 初始化：載入設定 ===
 $.ajax({
-	type: "get",
-	url: "data/config.json",
-	dataType: "json",
+	type: 'get',
+	url: 'data/config.json',
+	dataType: 'json',
 	async: true,
 	success: function(data) {
 		dataArrays = data;
 		parseProxy(data.proxy);
-		$(function (){
-			renderJson();
-		});
+		$(function() { renderJson(); });
 	}
 });
 
 showSnList();
 
+// === Modal 系統 ===
+function openModal(id) {
+	document.getElementById(id).classList.remove('hidden');
+}
+function closeModal(id) {
+	document.getElementById(id).classList.add('hidden');
+}
+function openScheduleModal() {
+	openModal('scheduleModal');
+	loadSchedule();
+}
+
+// === 主題切換 ===
+function cycleTheme() {
+	var saved = localStorage.getItem('theme') || 'auto';
+	var next = saved === 'dark' ? 'light' : saved === 'light' ? 'auto' : 'dark';
+	localStorage.setItem('theme', next);
+	applyTheme(next);
+	updateThemeIcon();
+}
+
+function applyTheme(mode) {
+	if (mode === 'light' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+		document.documentElement.classList.add('light');
+	} else {
+		document.documentElement.classList.remove('light');
+	}
+}
+
+function updateThemeIcon() {
+	var icon = document.getElementById('themeIcon');
+	if (!icon) return;
+	var saved = localStorage.getItem('theme') || 'auto';
+	icon.className = 'fas ' + (saved === 'light' ? 'fa-sun' : saved === 'dark' ? 'fa-moon' : 'fa-adjust');
+}
+
+$(function() { updateThemeIcon(); });
+
+// === 導航列手機版 toggle ===
+$(function() {
+	$('#navToggle').on('click', function() {
+		$('#navMenu').toggleClass('hidden');
+	});
+});
+
+// === 代理設定解析 ===
 function parseProxy(proxy) {
 	proxy_protocol = proxy.replace(/:\/\/.*/i, '').toUpperCase();
 	if (/.*@.*/.test(proxy)) {
@@ -30,7 +78,6 @@ function parseProxy(proxy) {
 			.replace(/(:\/\/:)?@?/g, '');
 		proxy = proxy.replace(proxy_user + ':' + proxy_passwd + '@', '');
 	}
-	var tmp = proxy.replace(/.*:\/\//i, '');
 	if (proxy.length > 0) {
 		proxy_ip = /:.*:/.exec(proxy)[0].replace(/:(\/\/)?/g, '');
 		proxy_port = /:\d+/.exec(proxy)[0].replace(/:/, '');
@@ -38,12 +85,48 @@ function parseProxy(proxy) {
 		proxy_ip = '';
 		proxy_port = '';
 	}
-	
+
 	dataArrays.proxy_protocol = proxy_protocol;
 	dataArrays.proxy_ip = proxy_ip;
 	dataArrays.proxy_port = proxy_port;
 	dataArrays.proxy_user = proxy_user;
 	dataArrays.proxy_passwd = proxy_passwd;
+}
+
+// === 設定表單渲染 ===
+function renderJson() {
+	for (var id of id_list) {
+		if (id === 'proxy') continue; // 代理設定已拆解
+		var el = document.getElementById(id);
+		if (!el) continue;
+		var idType = el.type;
+		switch (idType) {
+			case 'text':
+			case 'number':
+			case 'password':
+				if (id === 'multi-thread')
+					$('#manual_thread_limit').val(dataArrays[id]);
+				$('#' + id.replace(/([:.])/g, '\\$1')).val(dataArrays[id]);
+				break;
+			case 'checkbox':
+				el.checked = dataArrays[id];
+				break;
+			case 'select-one':
+				if (id === 'proxy_protocol') {
+					el.value = dataArrays[id].toUpperCase();
+				} else if (id === 'download_resolution') {
+					// 值為 '1080' 需對應 '1080P'
+					var resVal = String(dataArrays[id]);
+					if (!resVal.endsWith('P')) resVal += 'P';
+					el.value = resVal;
+				} else if (id === 'default_download_mode') {
+					el.value = dataArrays[id];
+				} else {
+					el.value = dataArrays[id];
+				}
+				break;
+		}
+	}
 }
 
 function reloadSetting() {
@@ -52,203 +135,149 @@ function reloadSetting() {
 }
 
 function readJson() {
-	$.getJSON("data/config.json", function(data) {
+	$.getJSON('data/config.json', function(data) {
 		dataArrays = data;
-		parseProxy(data.proxy); // 解析代理配置
+		parseProxy(data.proxy); // 解析代理設定
 	});
 }
 
-function renderJson() {
-	for (var id of id_list) {
-		if (id == 'proxy') continue; //代理设置已被分解
-		var idType = document.getElementById(id).type;
-		switch (idType) {
-			case 'text':
-			case 'number':
-			case 'password':
-				if (id  == 'multi-thread')  // 手动任务的默认线程数
-					$('#manual_thread_limit').val(dataArrays[id]);
-				$("#" + id).val(dataArrays[id]);
-				break;
-			case 'checkbox':
-				$("#" + id).bootstrapSwitch('state', dataArrays[id]);
-				break;
-			case 'select-one':
-				if (id == 'proxy_protocol') {
-					$("#" + id).selectpicker('val', dataArrays[id].toUpperCase());
-				} else {
-					$("#" + id).find("option:contains('" + dataArrays[id] + "')")
-						.prop("selected", true);
-					$("#" + id).selectpicker('render');
-				}
-				break;
-
-		}
-	}
-}
-
-
+// === 讀取表單並儲存 ===
 function readSettings() {
 	for (var id of id_list) {
-		if (id == 'proxy') continue; //代理设置已被分解
+		if (id === 'proxy') continue; // 代理設定已拆解
 
-		var idType = document.getElementById(id).type;
+		var el = document.getElementById(id);
+		if (!el) continue;
+		var idType = el.type;
 		switch (idType) {
 			case 'number':
-				dataArrays[id] = Number($("#" + id).val());
+				dataArrays[id] = Number($('#' + id.replace(/([:.])/g, '\\$1')).val());
 				break;
 			case 'text':
 			case 'password':
-				dataArrays[id] = $("#" + id).val();
+				dataArrays[id] = $('#' + id.replace(/([:.])/g, '\\$1')).val();
 				break;
 			case 'checkbox':
-				dataArrays[id] = $("#" + id).is(":checked");
+				dataArrays[id] = el.checked;
 				break;
 			case 'select-one':
-				if (id == 'proxy_protocol') {
-					dataArrays[id] = $("#proxy_protocol").val().toLowerCase();
-				} else if (id == 'download_resolution') {
-					dataArrays[id] = $("#download_resolution").val().replace('P', '');
+				if (id === 'proxy_protocol') {
+					dataArrays[id] = el.value.toLowerCase();
+				} else if (id === 'download_resolution') {
+					dataArrays[id] = el.value.replace('P', '');
 				} else {
-					dataArrays[id] = $("#" + id).val();
+					dataArrays[id] = el.value;
 				}
 				break;
 		}
+	}
 
-		// 合并代理配置
-		var a = ['proxy_protocol', 'proxy_ip', 'proxy_port', 'proxy_user', 'proxy_passwd'];
-		for (var i in a) {
-			var ip_port = dataArrays["proxy_ip"] + ':' + dataArrays["proxy_port"];
-			var protocol = dataArrays["proxy_protocol"] + '://';
-			if (dataArrays["proxy_user"]?.length * dataArrays["proxy_passwd"]?.length == 0) {
-				// 如果没有用户密码
-				dataArrays["proxy"] = protocol + ip_port;
-			} else {
-				// 如果有用户密码
-				var user_pw = dataArrays["proxy_user"] + ':' + dataArrays["proxy_passwd"] + '@';
-				dataArrays["proxy"] = protocol + user_pw + ip_port;
-			}
-
-		}
+	// 合併代理設定
+	var ip_port = dataArrays['proxy_ip'] + ':' + dataArrays['proxy_port'];
+	var protocol = dataArrays['proxy_protocol'] + '://';
+	if (!dataArrays['proxy_user'] || !dataArrays['proxy_passwd'] ||
+		dataArrays['proxy_user'].length * dataArrays['proxy_passwd'].length === 0) {
+		// 若無使用者密碼
+		dataArrays['proxy'] = protocol + ip_port;
+	} else {
+		var user_pw = dataArrays['proxy_user'] + ':' + dataArrays['proxy_passwd'] + '@';
+		dataArrays['proxy'] = protocol + user_pw + ip_port;
 	}
 
 	$.ajax({
 		url: '/uploadConfig',
 		type: 'post',
 		dataType: 'json',
-		headers: {
-			"Content-Type": "application/json;charset=utf-8"
-		},
 		contentType: 'application/json; charset=utf-8',
 		data: JSON.stringify(dataArrays),
-		success: function(data) {
-			// 向用户提示提交成功
+		success: function() {
+			// 向使用者提示儲存成功
 			$('#uploadOk').show();
 			$('#uploadFailed').hide();
-			$('#uploadStatus').modal();
+			openModal('uploadStatusModal');
 			reloadSetting();
 		},
-		error:function(status){
-			// 向用户提示提交失败
+		error: function() {
+			// 向使用者提示儲存失敗
 			$('#uploadOk').hide();
 			$('#uploadFailed').show();
-			$('#uploadStatus').modal();
+			openModal('uploadStatusModal');
 		}
-	})
+	});
 }
 
-function getUA(){
+function getUA() {
 	$('#ua').val(navigator.userAgent);
-	alert("已取得當前瀏覽器UA");
+	alert('已取得當前瀏覽器 UA');
 }
 
-function readManualConfig(){
-	var manualData = {};
+// === 手動任務 ===
+function readManualConfig() {
 	var link = $('#manual_link').val();
-	if (link.length == 0) {
-		alert('請輸入影片鏈接！')
-	} else {
-		var sn = link.replace(/(https:\/\/)?ani\.gamer\.com\.tw\/animeVideo\.php\?sn=/i, '');
-		manualData['sn'] = sn;
-		
-		var mode = $("#manual_mode").val();
-		manualData['mode'] = mode;
-		
-		var resolution = $('#manual_resolution').val().replace('P', '');
-		manualData['resolution'] = resolution;
-		
-		var classify = $('#manual_classify').is(":checked");
-		manualData['classify'] = classify;
-		
-		var thread = $('#manual_thread_limit').val();
-		manualData['thread'] = thread;
-
-		var danmu = $('#manual_danmu').is(":checked");
-		manualData['danmu'] = danmu;
-		
-		$.ajax({
-			url: '/manualTask',
-			type: 'post',
-			dataType: 'json',
-			headers: {
-				"Content-Type": "application/json;charset=utf-8"
-			},
-			contentType: 'application/json; charset=utf-8',
-			data: JSON.stringify(manualData),
-			success: function(data) {
-				// 向用户提示提交成功
-				$('#uploadOk').show();
-				$('#uploadFailed').hide();
-				$('#uploadStatus').modal();
-				reloadSetting();
-			},
-			error:function(status){
-				// 向用户提示提交失败
-				$('#uploadOk').hide();
-				$('#uploadFailed').show();
-				$('#uploadStatus').modal();
-			}
-		})
+	if (link.length === 0) {
+		alert('請輸入影片連結！');
+		return;
 	}
-	
+
+	var sn = link.replace(/(https:\/\/)?ani\.gamer\.com\.tw\/animeVideo\.php\?sn=/i, '');
+	var manualData = {
+		sn: sn,
+		mode: $('#manual_mode').val(),
+		resolution: $('#manual_resolution').val().replace('P', ''),
+		classify: document.getElementById('manual_classify').checked,
+		thread: $('#manual_thread_limit').val(),
+		danmu: document.getElementById('manual_danmu').checked
+	};
+
+	$.ajax({
+		url: '/manualTask',
+		type: 'post',
+		dataType: 'json',
+		contentType: 'application/json; charset=utf-8',
+		data: JSON.stringify(manualData),
+		success: function() {
+			$('#uploadOk').show();
+			$('#uploadFailed').hide();
+			openModal('uploadStatusModal');
+		},
+		error: function() {
+			$('#uploadOk').hide();
+			$('#uploadFailed').show();
+			openModal('uploadStatusModal');
+		}
+	});
 }
 
-function postSnList(){
+// === sn_list ===
+function postSnList() {
 	var sn_list = $('#sn_list').val();
-	
 	$.ajax({
 		url: '/sn_list',
 		type: 'post',
 		dataType: 'text',
-		headers: {
-			"Content-Type": "text/plain; charset=utf-8"
-		},
 		contentType: 'text/plain; charset=utf-8',
 		data: sn_list,
-		success: function(data) {
-			// 向用户提示提交成功
+		success: function() {
 			$('#uploadOk').show();
 			$('#uploadFailed').hide();
-			$('#uploadStatus').modal();
+			openModal('uploadStatusModal');
 			showSnList();
 		},
-		error:function(status){
-			// 向用户提示提交失败
+		error: function() {
 			$('#uploadOk').hide();
 			$('#uploadFailed').show();
-			$('#uploadStatus').modal();
+			openModal('uploadStatusModal');
 		}
-	})
+	});
 }
 
-function showSnList(){
-	$.get("data/sn_list", function(data) {
-		$("#sn_list").val(data);
-	})
+function showSnList() {
+	$.get('data/sn_list', function(data) {
+		$('#sn_list').val(data);
+	});
 }
 
 // === SNList 快速新增 ===
-
 function updateSnListPreview() {
 	var line = generateSnListLine();
 	$('#plex_preview').text(line || ' ');
@@ -258,7 +287,6 @@ function generateSnListLine() {
 	var snRaw = $('#plex_sn_input').val().trim();
 	if (!snRaw) return '';
 
-	// 從連結中提取 SN
 	var snMatch = snRaw.match(/sn=(\d+)/i);
 	var sn = snMatch ? snMatch[1] : snRaw.replace(/\D/g, '');
 	if (!sn) return '';
@@ -280,7 +308,6 @@ function generateSnListLine() {
 		line += ' ' + seasonStr;
 	}
 	if (comment) line += ' # ' + comment;
-
 	return line;
 }
 
@@ -291,40 +318,27 @@ function addSnListLine() {
 		return;
 	}
 	var current = $('#sn_list').val().trim();
-	if (current) {
-		$('#sn_list').val(current + '\n' + line);
-	} else {
-		$('#sn_list').val(line);
-	}
+	$('#sn_list').val(current ? current + '\n' + line : line);
 	// 清空表單
-	$('#plex_sn_input').val('');
-	$('#plex_folder_input').val('');
-	$('#plex_title_input').val('');
-	$('#plex_season_input').val('');
-	$('#plex_ep_offset_input').val('');
-	$('#plex_comment_input').val('');
+	$('#plex_sn_input, #plex_folder_input, #plex_title_input, #plex_season_input, #plex_ep_offset_input, #plex_comment_input').val('');
 	updateSnListPreview();
 }
 
-// 即時預覽：綁定輸入事件
+// 即時預覽
 $(function() {
 	$('#plex_sn_input, #plex_mode_select, #plex_folder_input, #plex_title_input, #plex_season_input, #plex_ep_offset_input, #plex_comment_input')
 		.on('input change', updateSnListPreview);
 });
 
 // === 排程資訊 ===
-
 $(function() {
-	$('#scheduleInfo').on('show.bs.modal', function() {
-		loadSchedule();
-	});
 	$('#sub_sn, #sub_mode, #sub_folder, #sub_title, #sub_season, #sub_ep_offset, #sub_comment')
 		.on('input change', updateSubscribePreview);
 });
 
 function loadSchedule() {
-	$('#schedule_tbody').html('<tr><td colspan="6" class="text-center text-muted">載入中...</td></tr>');
-	$('#schedule_error').hide();
+	$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>');
+	$('#schedule_error').addClass('hidden');
 
 	$.ajax({
 		type: 'get',
@@ -332,17 +346,13 @@ function loadSchedule() {
 		dataType: 'json',
 		success: function(data) {
 			if (data.error) {
-				$('#schedule_error').text(data.error).show();
+				$('#schedule_error').text(data.error).removeClass('hidden');
 			}
-			if (data.last_fetch) {
-				$('#schedule_last_fetch').text(data.last_fetch);
-			} else {
-				$('#schedule_last_fetch').text('-');
-			}
+			$('#schedule_last_fetch').text(data.last_fetch || '-');
 			renderScheduleTable(data.items || []);
 		},
 		error: function() {
-			$('#schedule_tbody').html('<tr><td colspan="6" class="text-center text-danger">載入失敗</td></tr>');
+			$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-red-400">載入失敗</td></tr>');
 		}
 	});
 }
@@ -356,12 +366,15 @@ function renderScheduleTable(items) {
 	tbody.empty();
 
 	if (items.length === 0) {
-		tbody.html('<tr><td colspan="6" class="text-center text-muted">無排程資料</td></tr>');
+		tbody.html('<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">無排程資料</td></tr>');
 		return;
 	}
 
-	// 按星期和時間排序
 	var dayOrder = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+	// 取得今天星期幾 (0=週一 ~ 6=週日)
+	var jsDay = new Date().getDay(); // 0=Sun
+	var todayIdx = jsDay === 0 ? 6 : jsDay - 1;
+
 	items.sort(function(a, b) {
 		var da = dayOrder.indexOf(a.day_name);
 		var db = dayOrder.indexOf(b.day_name);
@@ -369,37 +382,90 @@ function renderScheduleTable(items) {
 		return (a.time || '').localeCompare(b.time || '');
 	});
 
+	// 依星期分組
+	var grouped = {};
 	for (var i = 0; i < items.length; i++) {
-		var item = items[i];
-		var statusClass = item.in_sn_list ? 'text-success' : 'text-muted';
-		var statusText = item.in_sn_list ? '已訂閱' : '未訂閱';
-		var safeTitle = escapeHtml(item.title);
-		var titleAttr = safeTitle.replace(/'/g, '&#39;');
+		var day = items[i].day_name;
+		if (!grouped[day]) grouped[day] = [];
+		grouped[day].push(items[i]);
+	}
 
-		var actions = '';
-		if (item.in_sn_list) {
-			actions = '<button class="btn btn-sm btn-outline-danger mr-1" onclick="unsubscribeAnime(\'' + titleAttr + '\')">取消訂閱</button>' +
-				'<button class="btn btn-sm btn-outline-primary" onclick="forceCheckAnime(\'' + titleAttr + '\')">立即檢查</button>';
-		} else {
-			actions = '<button class="btn btn-sm btn-success" onclick="showSubscribeForm(' + item.sn + ', \'' + titleAttr + '\')">訂閱</button>';
+	var todayHeaderId = '';
+	var isFirstDay = true;
+	for (var d = 0; d < dayOrder.length; d++) {
+		var dayName = dayOrder[d];
+		var dayItems = grouped[dayName];
+		if (!dayItems) continue;
+
+		var isToday = d === todayIdx;
+		var headerId = 'schedDay_' + d;
+		if (isToday) todayHeaderId = headerId;
+
+		// 星期間隔列（非第一個星期前加空白間隔）
+		if (!isFirstDay) {
+			tbody.append('<tr class="schedule-day-spacer"><td colspan="5" class="py-2 bg-transparent"></td></tr>');
 		}
+		isFirstDay = false;
 
-		var row = '<tr' + (item.in_sn_list ? ' class="table-success"' : '') + '>' +
-			'<td>' + item.day_name + '</td>' +
-			'<td>' + (item.time || '-') + '</td>' +
-			'<td>' + safeTitle + '</td>' +
-			'<td>' + item.sn + '</td>' +
-			'<td class="' + statusClass + '">' + statusText + '</td>' +
-			'<td style="white-space:nowrap">' + actions + '</td>' +
-			'</tr>';
-		tbody.append(row);
+		// 星期標題列
+		var headerClass = isToday
+			? 'bg-cyan-900/30 text-cyan-400 font-bold border-l-[3px] border-cyan-400'
+			: 'bg-gray-800/60 text-gray-300 font-semibold';
+		var todayBadge = isToday ? ' <span class="text-xs font-normal ml-1 opacity-70">（今天）</span>' : '';
+		tbody.append(
+			'<tr id="' + headerId + '" class="schedule-day-header">' +
+			'<td colspan="5" class="px-3 py-2.5 ' + headerClass + '">' +
+			dayName + todayBadge +
+			' <span class="text-xs text-gray-500 font-normal ml-2">' + dayItems.length + ' 部</span>' +
+			'</td></tr>'
+		);
+
+		// 該日的番劇列表
+		for (var j = 0; j < dayItems.length; j++) {
+			var item = dayItems[j];
+			var statusClass = item.in_sn_list ? 'text-green-400' : 'text-gray-500';
+			var statusText = item.in_sn_list ? '已訂閱' : '未訂閱';
+			var safeTitle = escapeHtml(item.title);
+			var titleAttr = safeTitle.replace(/'/g, '&#39;');
+
+			var actions = '';
+			if (item.in_sn_list) {
+				actions =
+					'<button class="bg-red-700 hover:bg-red-600 text-white text-xs rounded px-2 py-1 mr-1 transition-colors" onclick="unsubscribeAnime(\'' + titleAttr + '\')">取消訂閱</button>' +
+					'<button class="bg-blue-700 hover:bg-blue-600 text-white text-xs rounded px-2 py-1 transition-colors" onclick="forceCheckAnime(\'' + titleAttr + '\')">立即檢查</button>';
+			} else {
+				actions =
+					'<button class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded px-2 py-1 transition-colors" onclick="showSubscribeForm(' + item.sn + ', \'' + titleAttr + '\')">訂閱</button>';
+			}
+
+			// 動畫瘋連結
+			var animeLink = '<a href="https://ani.gamer.com.tw/animeVideo.php?sn=' + item.sn +
+				'" target="_blank" rel="noopener" class="text-gray-500 hover:text-cyan-400 ml-1.5 transition-colors" title="前往動畫瘋">' +
+				'<i class="fas fa-external-link-alt text-xs"></i></a>';
+
+			var rowClass = item.in_sn_list ? 'subscribed-row' : '';
+			var row = '<tr class="' + rowClass + ' hover:bg-gray-800/50">' +
+				'<td class="px-3 py-2 text-gray-400">' + (item.time || '-') + '</td>' +
+				'<td class="px-3 py-2">' + safeTitle + animeLink + '</td>' +
+				'<td class="px-3 py-2 text-gray-400">' + item.sn + '</td>' +
+				'<td class="px-3 py-2 ' + statusClass + '">' + statusText + '</td>' +
+				'<td class="px-3 py-2 whitespace-nowrap">' + actions + '</td>' +
+				'</tr>';
+			tbody.append(row);
+		}
+	}
+
+	// 自動捲動至今天的星期
+	if (todayHeaderId) {
+		setTimeout(function() {
+			var header = document.getElementById(todayHeaderId);
+			if (header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}, 100);
 	}
 }
 
 // --- 訂閱表單 ---
-
 function showSubscribeForm(sn, title) {
-	// 還原 HTML 實體
 	var div = document.createElement('div');
 	div.innerHTML = title;
 	var cleanTitle = div.textContent || div.innerText || '';
@@ -410,17 +476,15 @@ function showSubscribeForm(sn, title) {
 	$('#sub_season').val('');
 	$('#sub_ep_offset').val('');
 	$('#sub_comment').val('');
-	$('#sub_sn_info').text('排程 SN: ' + sn + ' (最新集, 正在查詢第一集...)');
+	$('#sub_sn_info').text('排程 SN: ' + sn + ' (最新集，正在查詢第一集...)');
 	$('#sub_mode').val('latest');
 	updateSubscribePreview();
-	$('#subscribe_form').slideDown();
-
-	// 自動查詢第一集 SN
+	$('#subscribe_form').removeClass('hidden');
 	fetchFirstSn();
 }
 
 function hideSubscribeForm() {
-	$('#subscribe_form').slideUp();
+	$('#subscribe_form').addClass('hidden');
 }
 
 function fetchFirstSn() {
@@ -433,7 +497,7 @@ function fetchFirstSn() {
 		dataType: 'json',
 		success: function(data) {
 			if (data.error) {
-				$('#sub_sn_info').text('查詢失敗: ' + data.error);
+				$('#sub_sn_info').text('查詢失敗：' + data.error);
 			} else {
 				$('#sub_sn').val(data.first_sn);
 				$('#sub_sn_info').text('第一集 SN: ' + data.first_sn + ' (原查詢: ' + data.query_sn + ')');
@@ -467,7 +531,6 @@ function updateSubscribePreview() {
 		line += ' ' + seasonStr;
 	}
 	if (comment) line += ' # ' + comment;
-
 	$('#sub_preview').text(line);
 }
 
@@ -497,19 +560,15 @@ function submitSubscribe() {
 				hideSubscribeForm();
 				loadSchedule();
 			} else {
-				alert('訂閱失敗: ' + (data.error || '未知錯誤'));
+				alert('訂閱失敗：' + (data.error || '未知錯誤'));
 			}
 		},
-		error: function() {
-			alert('訂閱失敗: 網路錯誤');
-		}
+		error: function() { alert('訂閱失敗：網路錯誤'); }
 	});
 }
 
 // --- 取消訂閱 ---
-
 function unsubscribeAnime(title) {
-	// 還原 HTML 實體
 	var div = document.createElement('div');
 	div.innerHTML = title;
 	var cleanTitle = div.textContent || div.innerText || '';
@@ -519,7 +578,7 @@ function unsubscribeAnime(title) {
 	$.ajax({
 		type: 'post',
 		url: 'schedule/unsubscribe',
-		data: JSON.stringify({title: cleanTitle}),
+		data: JSON.stringify({ title: cleanTitle }),
 		contentType: 'application/json',
 		dataType: 'json',
 		success: function(data) {
@@ -527,19 +586,15 @@ function unsubscribeAnime(title) {
 				alert('已取消訂閱 (SN=' + data.sn + ')');
 				loadSchedule();
 			} else {
-				alert('取消訂閱失敗: ' + (data.error || '未找到對應條目'));
+				alert('取消訂閱失敗：' + (data.error || '未找到對應條目'));
 			}
 		},
-		error: function() {
-			alert('取消訂閱失敗: 網路錯誤');
-		}
+		error: function() { alert('取消訂閱失敗：網路錯誤'); }
 	});
 }
 
 // --- 立即檢查 ---
-
 function forceCheckAnime(title) {
-	// 還原 HTML 實體
 	var div = document.createElement('div');
 	div.innerHTML = title;
 	var cleanTitle = div.textContent || div.innerText || '';
@@ -547,57 +602,49 @@ function forceCheckAnime(title) {
 	$.ajax({
 		type: 'post',
 		url: 'schedule/force_check',
-		data: JSON.stringify({title: cleanTitle}),
+		data: JSON.stringify({ title: cleanTitle }),
 		contentType: 'application/json',
 		dataType: 'json',
 		success: function(data) {
 			if (data.status === 200) {
 				alert('已排入立即檢查 (SN=' + data.sn + ')\n將在數秒內自動開始');
 			} else {
-				alert('操作失敗: ' + (data.error || '未知錯誤'));
+				alert('操作失敗：' + (data.error || '未知錯誤'));
 			}
 		},
-		error: function() {
-			alert('操作失敗: 網路錯誤');
-		}
+		error: function() { alert('操作失敗：網路錯誤'); }
 	});
 }
 
-// === 任務監控浮動面板 ===
-
+// === 任務監控底部抽屜 ===
 var monitorInterval = null;
 var logInterval = null;
 var monitorKnownTasks = {};
 var lastLogLine = '';
+var drawerOpen = false;
 
-$(function() {
-	$('#toggleMonitor').on('click', function(e) {
-		e.preventDefault();
-		var panel = $('#monitorPanel');
-		if (panel.is(':visible')) {
-			closeMonitorPanel();
-		} else {
-			openMonitorPanel();
-		}
-	});
+function toggleDrawer() {
+	if (drawerOpen) {
+		closeDrawer();
+	} else {
+		openDrawer();
+	}
+}
 
-	$('#closeMonitor').on('click', function() {
-		closeMonitorPanel();
-	});
-});
-
-function openMonitorPanel() {
-	$('#monitorPanel').show();
-	// 立即載入一次
+function openDrawer() {
+	drawerOpen = true;
+	$('#monitorDrawer').addClass('expanded');
+	$('#drawerContent').css('max-height', '50vh');
 	fetchMonitorTasks();
 	fetchMonitorLogs();
-	// 開始輪詢: 任務進度 1 秒, 日誌 2 秒
 	monitorInterval = setInterval(fetchMonitorTasks, 1000);
 	logInterval = setInterval(fetchMonitorLogs, 2000);
 }
 
-function closeMonitorPanel() {
-	$('#monitorPanel').hide();
+function closeDrawer() {
+	drawerOpen = false;
+	$('#monitorDrawer').removeClass('expanded');
+	$('#drawerContent').css('max-height', '0');
 	if (monitorInterval) { clearInterval(monitorInterval); monitorInterval = null; }
 	if (logInterval) { clearInterval(logInterval); logInterval = null; }
 }
@@ -610,6 +657,15 @@ function fetchMonitorTasks() {
 
 		var container = $('#monitorTasks');
 		var hasTask = false;
+		var taskCount = Object.keys(data).length;
+
+		// 更新抽屜狀態列任務數
+		var badge = $('#drawerTaskCount');
+		if (taskCount > 0) {
+			badge.text(taskCount).removeClass('hidden bg-gray-800 text-gray-400').addClass('bg-cyan-600 text-white');
+		} else {
+			badge.text('0').removeClass('bg-cyan-600 text-white').addClass('hidden');
+		}
 
 		for (var sn in data) {
 			hasTask = true;
@@ -618,36 +674,29 @@ function fetchMonitorTasks() {
 			var existing = container.find('#mt_' + sn);
 
 			if (existing.length > 0) {
-				// 更新
-				existing.find('.monitor-task-name').text(task.filename || 'SN=' + sn);
+				existing.find('.mt-name').text(task.filename || 'SN=' + sn);
 				existing.find('.monitor-task-fill').css('width', pct + '%');
 				existing.find('.mt-pct').text(pct + '%');
 				existing.find('.mt-status').text(task.status || '');
 			} else {
-				// 新增
-				var html = '<div class="monitor-task" id="mt_' + sn + '">'
-					+ '<div class="monitor-task-name">' + escapeHtml(task.filename || 'SN=' + sn) + '</div>'
+				var html = '<div class="bg-gray-800 rounded-md p-3 mb-2" id="mt_' + sn + '">'
+					+ '<div class="mt-name text-sm text-gray-200 mb-1 truncate">' + escapeHtml(task.filename || 'SN=' + sn) + '</div>'
 					+ '<div class="monitor-task-bar"><div class="monitor-task-fill" style="width:' + pct + '%"></div></div>'
-					+ '<div class="monitor-task-info"><span class="mt-status">' + escapeHtml(task.status || '') + '</span><span class="mt-pct">' + pct + '%</span></div>'
+					+ '<div class="flex justify-between text-xs text-gray-400 mt-1"><span class="mt-status">' + escapeHtml(task.status || '') + '</span><span class="mt-pct">' + pct + '%</span></div>'
 					+ '</div>';
 				container.append(html);
 			}
 			monitorKnownTasks[sn] = true;
 		}
 
-		// 移除已完成的
-		for (var sn in monitorKnownTasks) {
-			if (!(sn in data)) {
-				container.find('#mt_' + sn).remove();
-				delete monitorKnownTasks[sn];
+		for (var knownSn in monitorKnownTasks) {
+			if (!(knownSn in data)) {
+				container.find('#mt_' + knownSn).remove();
+				delete monitorKnownTasks[knownSn];
 			}
 		}
 
-		if (hasTask) {
-			$('#monitorNoTask').hide();
-		} else {
-			$('#monitorNoTask').show();
-		}
+		$('#monitorNoTask').toggle(!hasTask);
 	});
 }
 
@@ -657,7 +706,6 @@ function fetchMonitorLogs() {
 			try { data = JSON.parse(data); } catch(e) { return; }
 		}
 		var lines = data.lines || [];
-		// 只在日誌有變化時更新 DOM (比對最後一行)
 		var currentLast = lines.length > 0 ? lines[lines.length - 1] : '';
 		if (currentLast === lastLogLine && lines.length > 0) return;
 		lastLogLine = currentLast;
@@ -669,7 +717,6 @@ function fetchMonitorLogs() {
 		for (var i = 0; i < lines.length; i++) {
 			var line = lines[i];
 			var cls = 'monitor-log-line';
-			// 簡易分類: 含「失敗」「ERROR」「錯誤」→ 紅色, 含「完成」「成功」→ 綠色
 			if (/失[敗败]|ERROR|錯誤|错误/.test(line)) {
 				cls += ' log-error';
 			} else if (/完成|成功|Refresh/.test(line)) {
@@ -679,7 +726,6 @@ function fetchMonitorLogs() {
 		}
 		container.html(html);
 
-		// 自動捲動到底部 (除非使用者正在往上捲)
 		if (wasAtBottom) {
 			container[0].scrollTop = container[0].scrollHeight;
 		}

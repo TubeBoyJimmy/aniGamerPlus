@@ -1,214 +1,189 @@
+/* aniGamerPlus Dashboard - Tailwind 補充樣式 */
+
+/* 全站字型 */
 body {
-    background: #F7F7F7;
-    font-family: "Microsoft YaHei";
+    font-family: "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
 }
 
-.login-content {
-    margin: 0 auto;
-    padding: 3rem 0 0;
-    text-align: center;
+/* 自訂 scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1a1a2e; }
+::-webkit-scrollbar-thumb { background: #4a4a5a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6a6a7a; }
+
+/* Toggle Switch (純 CSS) */
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+.toggle-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    width: 40px;
+    height: 20px;
+    background: #4b5563;
+    border-radius: 9999px;
+    position: relative;
+    transition: background 0.2s;
+}
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider {
+    background: #22c55e;
+}
+.toggle-switch input:checked + .toggle-slider::after {
+    transform: translateX(20px);
 }
 
-.login-wrapper {
-    margin: 5% auto 0;
-    max-width: 20rem;
+/* 任務進度條 */
+.monitor-task-bar {
+    height: 18px;
+    background: #374151;
+    border-radius: 4px;
+    overflow: hidden;
     position: relative;
 }
-
-.login-content h1:after, .login-content h1:before {
-    content: "";
-    height: 2px;
-    position: absolute;
-    margin: 0.5rem 0 0;
-    width: 20%;
-}
-
-.login-content h1:before {
-    background: #7e7e7e;
-    left: 0;
-}
-
-.login-content h1:after {
-    background: #7e7e7e;
-    right: 0;
-}
-
-.login-content h1 {
-    margin: 2rem 0 2rem;
-	text-align: center;
-	line-height: 1rem;
-	color: #73879C;
-}
-
-.login-content input ,  .login-content button {
-	margin: 1rem 0 0;
-	padding: 0.2rem 1rem;
-}
-
-.error-pw {
-	margin: 1rem 0 0;
-}
-
-.setting-wrapper {
-	margin: 1rem 1rem;
-	max-width: 60rem;
-}
-
-.setting-content {
-	margin: 1rem 1rem 0 1rem;
-}
-
-.setting-wrapper h2 {
-	margin: 1rem 1rem 0;
-	color: #73879C;
-}
-
-.my-button {
-	margin: 0 0 1rem 0;
-}
-
-.bootstrap-switch, .bootstrap-switch .bootstrap-switch-handle-on {
-	border-top-left-radius: 0 !important;
-	border-bottom-left-radius: 0 !important;
-	border-color: rgba(206,212,218,1);
-}
-
-.btn-gray {
-    color: #212529;
-    background-color: #eeeeee;
-    border-color: #eeeeee;
-	border-top-left-radius: 0 !important;
-	border-bottom-left-radius: 0 !important;
-}
-
-.my-navbar {
-	margin-left: 3rem;
-}
-
-.upload-status {
-	padding: 2rem 0 0;
-	font-family: "Microsoft YaHei";
-	font-weight: bold;
-	font-size: larger;
-}
-
-/* 任務監控浮動面板 */
-.monitor-panel {
-	position: fixed;
-	top: 56px;
-	right: 0;
-	width: 420px;
-	bottom: 0;
-	background: #1e1e1e;
-	color: #d4d4d4;
-	z-index: 1040;
-	box-shadow: -2px 0 12px rgba(0,0,0,0.3);
-	display: flex;
-	flex-direction: column;
-	font-family: "Consolas", "Microsoft YaHei", monospace;
-	font-size: 13px;
-}
-
-.monitor-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 10px 14px;
-	background: #2d2d2d;
-	border-bottom: 1px solid #404040;
-	flex-shrink: 0;
-}
-
-.monitor-title {
-	font-weight: bold;
-	font-size: 14px;
-	color: #e0e0e0;
-}
-
-.monitor-body {
-	flex: 1;
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-}
-
-.monitor-section {
-	padding: 8px 12px;
-}
-
-.monitor-section-title {
-	font-size: 11px;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 1px;
-	margin-bottom: 6px;
-	border-bottom: 1px solid #333;
-	padding-bottom: 4px;
-}
-
-/* 任務進度卡片 */
-.monitor-task {
-	background: #2a2a2a;
-	border-radius: 4px;
-	padding: 8px 10px;
-	margin-bottom: 6px;
-}
-
-.monitor-task-name {
-	font-size: 12px;
-	color: #ccc;
-	margin-bottom: 4px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.monitor-task-bar {
-	height: 16px;
-	background: #333;
-	border-radius: 3px;
-	overflow: hidden;
-	position: relative;
-}
-
 .monitor-task-fill {
-	height: 100%;
-	background: #4caf50;
-	border-radius: 3px;
-	transition: width 0.3s ease;
+    height: 100%;
+    background: #22c55e;
+    border-radius: 4px;
+    transition: width 0.3s ease;
 }
 
-.monitor-task-info {
-	display: flex;
-	justify-content: space-between;
-	font-size: 11px;
-	color: #999;
-	margin-top: 2px;
+/* 底部抽屜 */
+#monitorDrawer.expanded #drawerArrow {
+    transform: rotate(180deg);
 }
 
 /* 日誌區 */
 .monitor-logs {
-	flex: 1;
-	overflow-y: auto;
-	background: #1a1a1a;
-	border-radius: 4px;
-	padding: 6px 8px;
-	font-size: 11px;
-	line-height: 1.5;
-	min-height: 200px;
-	max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    background: #0f172a;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    min-height: 150px;
+    max-height: 25vh;
 }
-
 .monitor-log-line {
-	white-space: pre-wrap;
-	word-break: break-all;
-	padding: 1px 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding: 1px 0;
 }
+.monitor-log-line.log-error { color: #ef4444; }
+.monitor-log-line.log-success { color: #22c55e; }
 
-.monitor-log-line.log-error {
-	color: #f44336;
-}
+/* 排程表格 - 已訂閱行 */
+tr.subscribed-row { background: rgba(34, 197, 94, 0.08); }
+tr.subscribed-row:hover { background: rgba(34, 197, 94, 0.15); }
 
-.monitor-log-line.log-success {
-	color: #4caf50;
+/* 排程表格 - 星期間隔 */
+.schedule-day-spacer td { border: none !important; }
+.schedule-day-header td { border: none !important; }
+
+/* ======= 淺色主題覆寫 ======= */
+/* 巴哈姆特青: #00bcd4 / 深: #0097a7 — 搭配 Tailwind cyan */
+
+/* 背景色 — 接近巴哈姆特白底風格 */
+html.light body { background-color: #f0f1f3; color: #111827; }
+.light .bg-gray-950 { background-color: #f0f1f3; }
+.light .bg-gray-900 { background-color: #ffffff; }
+.light .bg-gray-800 { background-color: #ebedf0; }
+.light .bg-gray-700 { background-color: #dde0e5; }
+
+/* 導航列 — 淺色主題下稍微調亮 */
+.light nav.fixed {
+    background-color: #0097a7 !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
+.light .max-md\:bg-cyan-700 { background-color: #0097a7; }
+.light .max-md\:border-cyan-600 { border-color: #00838f; }
+
+/* 文字色 — 加深，提高可讀性 */
+.light .text-gray-100 { color: #111827; }
+.light .text-gray-200 { color: #1f2937; }
+.light .text-gray-300 { color: #1e293b; }
+.light .text-gray-400 { color: #374151; }
+.light .text-gray-500 { color: #6b7280; }
+
+/* 邊框色 */
+.light .border-gray-600 { border-color: #9ca3af; }
+.light .border-gray-700 { border-color: #c0c6cf; }
+.light .border-gray-800 { border-color: #d1d5db; }
+.light .border-red-800 { border-color: #f87171; }
+.light .border-yellow-700 { border-color: #f59e0b; }
+
+/* Section 標題底線 — 巴哈青點綴 */
+.light section > h2.border-b { border-bottom-color: rgba(0, 188, 212, 0.4) !important; }
+
+/* Placeholder */
+.light .placeholder-gray-500::placeholder { color: #9ca3af; }
+
+/* Hover 狀態 */
+.light .hover\:bg-gray-600:hover { background-color: #c0c6cf; }
+.light .hover\:border-gray-500:hover { border-color: #6b7280; }
+
+/* 強調色文字（綠=狀態/成功、紅=錯誤） */
+.light .text-green-400 { color: #16a34a; }
+.light .text-green-500 { color: #16a34a; }
+.light .text-red-300 { color: #dc2626; }
+.light .text-red-400 { color: #dc2626; }
+.light .text-yellow-300 { color: #b45309; }
+.light .text-blue-400 { color: #2563eb; }
+
+/* Cyan 按鈕 — 巴哈青 */
+.light .bg-cyan-600 { background-color: #00a5bb; }
+.light .hover\:bg-cyan-500:hover { background-color: #00bcd4; }
+.light .bg-cyan-700 { background-color: #0097a7; }
+.light .hover\:bg-cyan-600:hover { background-color: #00a5bb; }
+
+/* 半透明背景 */
+.light .bg-gray-800\/50 { background-color: rgba(235, 237, 240, 0.6); }
+.light .bg-red-900\/40 { background-color: rgba(254, 202, 202, 0.5); }
+.light .bg-yellow-900\/30 { background-color: rgba(254, 243, 199, 0.4); }
+.light .hover\:bg-gray-800\/50:hover { background-color: rgba(221, 224, 229, 0.6); }
+
+/* 分隔線 */
+.light .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #d1d5db; }
+
+/* Scrollbar */
+html.light ::-webkit-scrollbar-track { background: #ebedf0; }
+html.light ::-webkit-scrollbar-thumb { background: #b0b8c4; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #8b95a3; }
+
+/* Toggle Switch — 保留綠色表示啟用 */
+.light .toggle-slider { background: #b0b8c4; }
+.light .toggle-switch input:checked + .toggle-slider { background: #22c55e; }
+
+/* 監控面板 — 保留綠色進度條 */
+.light .monitor-task-bar { background: #dde0e5; }
+.light .monitor-task-fill { background: #22c55e; }
+.light .monitor-logs { background: #f7f8f9; border: 1px solid #d1d5db; color: #1f2937; }
+.light .monitor-log-line.log-error { color: #dc2626; }
+.light .monitor-log-line.log-success { color: #16a34a; }
+
+/* 底部抽屜 */
+.light #monitorDrawer > div:first-child { background-color: #ffffff !important; border-top-color: #d1d5db !important; }
+
+/* 排程表格 */
+.light tr.subscribed-row { background: rgba(34, 197, 94, 0.06); }
+.light tr.subscribed-row:hover { background: rgba(34, 197, 94, 0.12); }
+.light .schedule-day-header td { background-color: #ebedf0; }
+.light .bg-cyan-900\/30 { background-color: rgba(0, 188, 212, 0.1) !important; }
+.light .text-cyan-400 { color: #0097a7 !important; }
+.light .border-cyan-400 { border-color: #0097a7 !important; }
+
+/* Modal 背景遮罩 */
+.light .bg-black\/60 { background-color: rgba(0, 0, 0, 0.35); }

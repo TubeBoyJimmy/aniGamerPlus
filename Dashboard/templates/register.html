@@ -1,25 +1,36 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<script src="../static/js/jquery-3.3.1.slim.min.js"></script>
-		<script src="../static/js/popper.min.js"></script>
-		<link rel="stylesheet" href="../static/css/bootstrap.rfs.min.css">
-		<script src="../static/js/bootstrap.min.js"></script>
-		<link rel="stylesheet" href="../static/css/aniGamerPlus.css"/>
-		<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0" />
-		<link rel="shortcut icon" href="../static/img/aniGamerPlus.ico" type="image/x-icon" />
-		<title>注冊 - aniGamerPlus控制臺</title>
-	</head>
-	<body>
-		<div class="login-wrapper">
-			<form class="login-content">
-				<h1>注冊密碼</h1>
-				<input type="password" class="form-control" id="pw1" placeholder="輸入密碼" />
-				<input type="password" class="form-control" id="pw2" placeholder="再次輸入密碼" />
-				<button type="button" class="btn btn-success">注冊</button>
-			</form>
+<html lang="zh-TW">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>(function(){var t=localStorage.getItem('theme');if(t==='light'||(!t&&window.matchMedia('(prefers-color-scheme: light)').matches))document.documentElement.classList.add('light');})()</script>
+	<link rel="stylesheet" href="../static/css/aniGamerPlus.css">
+	<link rel="shortcut icon" href="../static/img/aniGamerPlus.ico" type="image/x-icon">
+	<title>註冊 - aniGamerPlus 控制臺</title>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center">
+	<div class="w-full max-w-sm px-6">
+		<div class="text-center mb-8">
+			<h1 class="text-2xl font-bold text-gray-100">aniGamerPlus</h1>
+			<p class="text-gray-500 text-sm mt-1">設定密碼</p>
 		</div>
-		
-	</body>
+		<form class="bg-gray-900 rounded-md border border-gray-800 p-6 shadow-lg" id="registerForm">
+			<div class="mb-4">
+				<input type="password" id="pw1" placeholder="輸入密碼"
+					class="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-4 py-2.5
+					       placeholder-gray-500 outline-none hover:border-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
+			</div>
+			<div class="mb-4">
+				<input type="password" id="pw2" placeholder="再次輸入密碼"
+					class="w-full bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-4 py-2.5
+					       placeholder-gray-500 outline-none hover:border-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
+			</div>
+			<button type="submit"
+				class="w-full bg-green-600 hover:bg-green-500 text-white font-medium rounded-md px-4 py-2.5 transition-colors">
+				註冊
+			</button>
+		</form>
+	</div>
+</body>
 </html>
