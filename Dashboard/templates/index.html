@@ -27,7 +27,7 @@
 			<div id="navMenu" class="hidden md:flex items-center gap-4 ml-8
 				max-md:absolute max-md:top-14 max-md:left-0 max-md:right-0 max-md:bg-cyan-700 max-md:border-b max-md:border-cyan-600 max-md:p-4 max-md:flex-col max-md:gap-3">
 				<a href="#" class="text-cyan-100 hover:text-white text-sm transition-colors">自動模式設定</a>
-				<a href="#" onclick="toggleDrawer()" class="text-cyan-100 hover:text-white text-sm transition-colors">任務監控中心</a>
+				<a href="#" onclick="toggleDrawer()" class="text-cyan-100 hover:text-white text-sm transition-colors" title="快捷鍵 T">任務監控中心</a>
 				<a href="#" onclick="openModal('snListModal')" class="text-cyan-100 hover:text-white text-sm transition-colors">sn_list</a>
 				<a href="#" onclick="openScheduleModal()" class="text-cyan-100 hover:text-white text-sm transition-colors">排程資訊</a>
 				<button onclick="cycleTheme()" class="text-cyan-200 hover:text-white transition-colors" title="切換主題">
@@ -576,6 +576,7 @@
 					<i class="fas fa-chevron-up text-gray-400 text-xs transition-transform duration-300" id="drawerArrow"></i>
 					<span class="text-sm text-gray-300">任務監控</span>
 					<span id="drawerTaskCount" class="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5 hidden">0</span>
+					<kbd class="text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 font-mono leading-none hidden md:inline">T</kbd>
 				</div>
 			</div>
 		</div>

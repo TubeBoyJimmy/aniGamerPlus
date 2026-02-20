@@ -792,3 +792,34 @@ function fetchMonitorLogs() {
 		}
 	});
 }
+
+// === 鍵盤快捷鍵 ===
+$(document).on('keydown', function(e) {
+	// ESC: 關閉最上層介面（modal > 訂閱表單 > 抽屜）
+	if (e.key === 'Escape') {
+		var modals = ['uploadStatusModal', 'scheduleModal', 'manualTaskModal', 'snListModal'];
+		for (var i = 0; i < modals.length; i++) {
+			var el = document.getElementById(modals[i]);
+			if (el && !el.classList.contains('hidden')) {
+				closeModal(modals[i]);
+				return;
+			}
+		}
+		var subForm = document.getElementById('subscribe_form');
+		if (subForm && !subForm.classList.contains('hidden')) {
+			hideSubscribeForm();
+			return;
+		}
+		return;
+	}
+
+	// 排除表單元素（避免打字時誤觸）
+	var tag = (e.target.tagName || '').toLowerCase();
+	if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+
+	// T: Toggle 任務監控抽屜
+	if (e.key === 't' || e.key === 'T') {
+		e.preventDefault();
+		toggleDrawer();
+	}
+});
