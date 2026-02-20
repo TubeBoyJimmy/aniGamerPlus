@@ -163,7 +163,8 @@ def __init_settings():
                     'SSL': False,
                     'BasicAuth': False,
                     'username': 'admin',
-                    'password': 'admin'
+                    'password': 'admin',
+                    'http_log': False
                 },
                 'save_logs': True,
                 'quantity_of_logs': 7,
@@ -397,6 +398,9 @@ def __update_settings(old_settings):  # 升级配置文件
         # v18.0 新增 Plex 媒體目標資料夾
         new_settings['plex_bangumi_dir'] = ''
 
+    if 'http_log' not in new_settings.get('dashboard', {}):
+        new_settings.setdefault('dashboard', {})['http_log'] = False
+
     if 'smart_schedule' not in new_settings.keys():
         # v18.0 新增智慧排程功能
         new_settings['smart_schedule'] = False
@@ -408,7 +412,7 @@ def __update_settings(old_settings):  # 升级配置文件
     new_settings['config_version'] = latest_config_version
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(new_settings, f, ensure_ascii=False, indent=4)
-    msg = '配置文件從 v' + str(old_settings['config_version']) + ' 升級到 v' + str(latest_config_version) + ' 你的有效配置不會丟失!'
+    msg = '設定檔從 v' + str(old_settings['config_version']) + ' 升級到 v' + str(latest_config_version) + '，你的有效設定不會遺失！'
     __color_print(0, msg, status=2, no_sn=True)
 
 

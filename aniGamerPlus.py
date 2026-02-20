@@ -369,9 +369,9 @@ def check_tasks(sn_subset=None):
                 latest_sn = episode_list[-1]
             try:
                 db = read_db(latest_sn)
-                #           未下载的   或                设定要上传但是没上传的                         并且  还没在列队中
+                # 未下載的 或 設定要上傳但尚未上傳的，且不在列隊中
                 if (db['status'] == 0 or (db['remote_status'] == 0 and settings['upload_to_server'])) and latest_sn not in queue.keys():
-                    queue[latest_sn] = check_dict[sn]  # 添加至下载列队
+                    queue[latest_sn] = check_dict[sn]  # 加入下載列隊
                 elif db['status'] != 0:
                     err_print(latest_sn, '更新資訊', '已下載完成，略過')
             except IndexError:
@@ -832,7 +832,7 @@ def export_my_anime():
 def run_dashboard():
     # 检测端口是否占用
     if not port_is_available(settings['dashboard']['port']):
-        err_print(0, 'Web控制面板啓動失敗', 'Port已被占用! 請到配置文件更換', status=1, no_sn=True)
+        err_print(0, 'Web 控制面板啟動失敗', 'Port 已被佔用！請至設定檔更換', status=1, no_sn=True)
         return
 
     from Dashboard.Server import run as dashboard
@@ -928,7 +928,7 @@ if __name__ == '__main__':
             print(info + '\n    ' + save_dir)
             err_print(0, info + save_dir, no_sn=True, display=False)
         else:
-            info = '使用命令行模式, 文件將保存在配置文件中指定的目錄下: '
+            info = '使用命令列模式，檔案將儲存在設定檔指定的目錄下: '
             print(info + '\n    ' + settings['bangumi_dir'])
             err_print(0, info + settings['bangumi_dir'], no_sn=True, display=False)
 
@@ -975,15 +975,15 @@ if __name__ == '__main__':
 
         if not arg.resolution:
             resolution = settings['download_resolution']
-            print('未设定下载解析度, 将使用配置文件指定的清晰度: ' + resolution + 'P')
+            print('未設定下載解析度，將使用設定檔指定的畫質: ' + resolution + 'P')
         else:
             if arg.download_mode in ('sn-list', 'list'):
                 err_print(0,'無效參數:', 'list 及 sn-list 模式無法通過命令行指定清晰度', 1, no_sn=True, display_time=False)
                 resolution = settings['download_resolution']
-                print('将使用配置文件指定的清晰度: ' + resolution + 'P')
+                print('將使用設定檔指定的畫質: ' + resolution + 'P')
             else:
                 resolution = str(arg.resolution)
-                print('指定下载解析度: ' + resolution + 'P')
+                print('指定下載解析度: ' + resolution + 'P')
 
         if arg.download_mode == "db":
             download_mode = "danmu"
@@ -1126,10 +1126,10 @@ if __name__ == '__main__':
                     task.start()
                     processing_queue.append(task_sn)
                     new_tasks_counter = new_tasks_counter + 1
-                    err_print(task_sn, '加入任务列隊')
+                    err_print(task_sn, '加入任務列隊')
         info = '本次更新添加了 '+str(new_tasks_counter)+' 個新任務, 目前列隊中共有 ' + str(len(processing_queue)) + ' 個任務'
         err_print(0, '更新資訊', info, no_sn=True)
-        err_print(0, '更新终了', no_sn=True)
+        err_print(0, '更新終了', no_sn=True)
         print()
         force_check_triggered = False
         for i in range(settings['check_frequency'] * 60):

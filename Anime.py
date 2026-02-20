@@ -449,7 +449,7 @@ class Anime:
                     # 通过广告检查
                     if error_count != 10:
                         ads_time = (10-error_count)*2 + ad_time + 2
-                        err_print(self._sn, '通过廣告時間' + str(ads_time) + '秒, 記錄到配置檔案', status=2)
+                        err_print(self._sn, '通過廣告時間' + str(ads_time) + '秒，記錄至設定檔', status=2)
                         if self._settings['use_mobile_api']:
                             self._settings['mobile_ads_time'] = ads_time
                         else:
@@ -779,7 +779,7 @@ class Anime:
         if self.realtime_show_file_size:
             sys.stdout.write('\n')
             sys.stdout.flush()
-        err_print(self._sn, '下載狀態', filename + ' 下載完成, 正在解密合并……')
+        err_print(self._sn, '下載狀態', filename + ' 下載完成，正在解密合併……')
         Config.tasks_progress_rate[int(self._sn)]['status'] = '下載完成'
 
         # 构造 ffmpeg 命令
@@ -806,7 +806,7 @@ class Anime:
         # 记录文件大小，单位为 MB
         self.video_size = int(os.path.getsize(merging_file) / float(1024 * 1024))
         # 重命名
-        err_print(self._sn, '下載狀態', filename + ' 解密合并完成, 本集 ' + str(self.video_size) + 'MB, 正在移至番劇目錄……')
+        err_print(self._sn, '下載狀態', filename + ' 解密合併完成，本集 ' + str(self.video_size) + 'MB，正在移至番劇目錄……')
         if os.path.exists(output_file):
             os.remove(output_file)
 
@@ -1041,7 +1041,7 @@ class Anime:
             err_print(self._sn, '任務狀態', err_msg_detail, status=1)
         self.video_resolution = int(resolution)
 
-        # 檢查目標檔案是否已存在 (避免重複下載)
+        # 檢查目標檔案是否已存在 (避免重複下載，手動任務可跳過此檢查)
         _check_filename = self.__get_filename(resolution)
         _check_output = os.path.join(self._bangumi_dir, _check_filename)
         if not force_download and os.path.exists(_check_output):

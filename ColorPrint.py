@@ -25,7 +25,7 @@ def read_log_settings():
     except BaseException as e:
         settings['save_logs'] = True
         settings['quantity_of_logs'] = 7
-        print('日志配置讀取失敗, 將使用默認配置: 啓用日志, 最多保存7份 '+str(e))
+        print('日誌設定讀取失敗，將使用預設設定：啟用日誌，最多保存 7 份 '+str(e))
     if 'save_logs' not in settings.keys():
         settings['save_logs'] = True
     if 'quantity_of_logs' not in settings.keys():

@@ -24,7 +24,6 @@ from logging.handlers import TimedRotatingFileHandler
 import mimetypes
 import ssl
 from gevent.pywsgi import WSGIServer
-from geventwebsocket.handler import WebSocketHandler
 
 mimetypes.add_type('text/css', '.css')
 mimetypes.add_type('application/x-javascript', '.js')
@@ -33,27 +32,26 @@ static_path = os.path.join(Config.get_working_dir(), 'Dashboard', 'static')
 app = Flask(__name__, template_folder=template_path, static_folder=static_path)
 app.debug = False
 
-# 日志处理
-# logger = logging.getLogger('werkzeug')
-logger = logging.getLogger('geventwebsocket')
-logging.basicConfig(level=logging.INFO)  # 记录访问
+# 日誌處理
+logger = logging.getLogger('werkzeug')
+logging.basicConfig(level=logging.INFO)  # 記錄存取
 web_log_path = os.path.join(Config.get_working_dir(), 'logs', 'web.log')
 handler = TimedRotatingFileHandler(filename=web_log_path, when='midnight', backupCount=7, encoding='utf-8')
 handler.suffix = '%Y-%m-%d.log'
 handler.extMatch = re.compile(r'^\d{4}-\d{2}-\d{2}.log')
 logger.addHandler(handler)
-logger.propagate = False  # 不在控制台上输出
+logger.propagate = False  # 不在主控台輸出
 
 
 
-# 处理 Flask 写日志到文件带有颜色控制符的问题
+# 處理 Flask 寫日誌到檔案帶有顏色控制符的問題
 def colored(text, color=None, on_color=None, attrs=None):
-    who_invoked = traceback.extract_stack()[-2][2]  # 函数调用人
+    who_invoked = traceback.extract_stack()[-2][2]  # 函式呼叫者
     if who_invoked == 'log_request':
-        # 如果是来自 Flask/werkzeug 的调用
+        # 來自 Flask/werkzeug 的呼叫
         return text
     else:
-        # 来自其他的调用正常高亮
+        # 其他呼叫正常上色
         COLORS = termcolor.COLORS
         HIGHLIGHTS = termcolor.HIGHLIGHTS
         ATTRIBUTES = termcolor.ATTRIBUTES
@@ -75,7 +73,7 @@ termcolor.colored = colored
 app.logger.addHandler(handler)
 
 
-# 读取web需要的配置名称列表
+# 讀取 Web 需要的設定名稱列表
 id_list_path = os.path.join(Config.get_working_dir(), 'Dashboard', 'static', 'js', 'settings_id_list.js')
 with open(id_list_path, 'r', encoding='utf-8') as f:
     id_list = re.sub(r'(var id_list\s*=\s*|\s*\n?)', '', f.read()).replace('\'', '"')
@@ -87,17 +85,13 @@ def home():
     return render_template('index.html')
 
 
-@app.route('/monitor')
-def monitor():
-    return render_template('monitor.html')
-
 
 @app.route('/data/config.json', methods=['GET'])
 def config():
     settings = Config.read_settings()
     web_settings = {}
     for id in id_list:
-        web_settings[id] = settings[id]  # 仅返回 web 需要的配置
+        web_settings[id] = settings[id]  # 僅回傳 Web 需要的設定
 
     return jsonify(web_settings)
 
@@ -107,8 +101,8 @@ def recv_config():
     data = json.loads(request.get_data(as_text=True))
     new_settings = Config.read_settings()
     for id in id_list:
-        new_settings[id] = data[id]  # 更新配置
-    Config.write_settings(new_settings)  # 保存配置
+        new_settings[id] = data[id]  # 更新設定
+    Config.write_settings(new_settings)  # 儲存設定
     err_print(0, 'Dashboard', '通過 Web 控制臺更新了 config.json', no_sn=True, status=2)
     return '{"status":"200"}'
 
@@ -118,26 +112,26 @@ def manual_task():
     data = json.loads(request.get_data(as_text=True))
     settings = Config.read_settings()
 
-    # 下载清晰度
+    # 下載解析度
     if data['resolution'] not in ('360', '480', '540', '720', '1080'):
-        # 如果不是合法清晰度
+        # 非合法解析度
         resolution = settings['download_resolution']
     else:
         resolution = data['resolution']
 
-    # 下载模式
+    # 下載模式
     if data['mode'] not in ('single', 'latest', 'all', 'largest-sn'):
         mode = 'single'
     else:
         mode = data['mode']
 
-    # 下载线程数
+    # 下載執行緒數
     if data['thread']:
         thread = int(data['thread'])
     else:
         thread = 1
     if thread > Config.get_max_multi_thread():
-        # 是否超过最大允许线程数
+        # 是否超過最大允許執行緒數
         thread_limit = Config.get_max_multi_thread()
     else:
         thread_limit = thread
@@ -147,7 +141,7 @@ def manual_task():
 
     server = threading.Thread(target=run_cui)
     err_print(0, 'Dashboard', '通過 Web 控制臺下達了手動任務', no_sn=True, status=2)
-    server.start()  # 启动手动任务线程
+    server.start()  # 啟動手動任務執行緒
     return '{"status":"200"}'
 
 
@@ -388,17 +382,23 @@ def schedule_force_check():
 
 
 def run():
-    settings = Config.read_settings()  # 读取配置
+    settings = Config.read_settings()  # 讀取設定
 
     if settings['dashboard']['BasicAuth']:
         # BasicAuth 配置
-        app.config['BASIC_AUTH_USERNAME'] = settings['dashboard']['username']  # BasicAuth user
-        app.config['BASIC_AUTH_PASSWORD'] = settings['dashboard']['password']  # BasicAuth password
-        app.config['BASIC_AUTH_FORCE'] = True  # 全站验证
+        app.config['BASIC_AUTH_USERNAME'] = settings['dashboard']['username']
+        app.config['BASIC_AUTH_PASSWORD'] = settings['dashboard']['password']
+        app.config['BASIC_AUTH_FORCE'] = True  # 全站驗證
         basic_auth = BasicAuth(app)
 
     port = settings['dashboard']['port']
     host = settings['dashboard']['host']
+
+    # HTTP 存取日誌控制：預設不在終端顯示，可在 config.json dashboard.http_log 開啟
+    if settings['dashboard'].get('http_log', False):
+        server_log = 'default'  # 輸出至終端
+    else:
+        server_log = None  # 不輸出至終端
 
     if settings['dashboard']['SSL']:
         # SSL 配置
@@ -407,12 +407,12 @@ def run():
         ssl_key = os.path.join(ssl_path, 'server.key')
         # ssl_keys = (ssl_crt, ssl_key)
         # app.run(use_reloader=False, port=port, host=host, ssl_context=ssl_keys)
-        server = WSGIServer((host, port), app, handler_class=WebSocketHandler, certfile=ssl_crt, keyfile=ssl_key)
+        server = WSGIServer((host, port), app, certfile=ssl_crt, keyfile=ssl_key, log=server_log)
 
         wrap_socket = server.wrap_socket
         wrap_socket_and_handle = server.wrap_socket_and_handle
 
-        # 处理一些浏览器(比如Chrome)尝试 SSL v3 访问时报错
+        # 處理部分瀏覽器 (如 Chrome) 嘗試 SSL v3 存取時的錯誤
         def my_wrap_socket(sock, **_kwargs):
             try:
                 # print('my_wrap_socket')
@@ -421,7 +421,7 @@ def run():
                 # print('my_wrap_socket ssl.SSLError')
                 pass
 
-        # 此方法依赖上面的返回值, 因此当尝试访问 SSL v3 时, 这个也会出错
+        # 此方法依賴上面的回傳值，因此當嘗試存取 SSL v3 時也會出錯
         def my_wrap_socket_and_handle(client_socket, address):
             try:
                 # print('my_wrap_socket_and_handle')
@@ -435,7 +435,7 @@ def run():
 
     else:
         # app.run(use_reloader=False, port=port, host=host)
-        server = WSGIServer((host, port), app, handler_class=WebSocketHandler)
+        server = WSGIServer((host, port), app, log=server_log)
 
     server.serve_forever()
 
