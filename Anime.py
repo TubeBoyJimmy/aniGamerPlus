@@ -918,7 +918,7 @@ class Anime:
                 run_ffmpeg.returncode) + ' Bad segment=' + str(return_str.find('Failed to open segment'))
             err_print(self._sn, '下載失败', err_msg_detail, status=1)
 
-    def download(self, resolution='', save_dir='', bangumi_tag='', realtime_show_file_size=False, rename='', classify=True, plex_info=None):
+    def download(self, resolution='', save_dir='', bangumi_tag='', realtime_show_file_size=False, rename='', classify=True, plex_info=None, force_download=False):
         self.realtime_show_file_size = realtime_show_file_size
         if not resolution:
             resolution = self._settings['download_resolution']
@@ -1044,7 +1044,7 @@ class Anime:
         # 檢查目標檔案是否已存在 (避免重複下載)
         _check_filename = self.__get_filename(resolution)
         _check_output = os.path.join(self._bangumi_dir, _check_filename)
-        if os.path.exists(_check_output):
+        if not force_download and os.path.exists(_check_output):
             _exist_size = int(os.path.getsize(_check_output) / float(1024 * 1024))
             if _exist_size >= 5:
                 err_print(self._sn, '下載狀態', _check_filename + ' 已存在 (' + str(_exist_size) + 'MB), 跳過下載', status=2)
