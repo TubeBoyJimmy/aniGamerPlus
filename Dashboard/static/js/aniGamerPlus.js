@@ -311,6 +311,37 @@ function generateSnListLine() {
 	return line;
 }
 
+function fetchFirstSnForSnList() {
+	var raw = $('#plex_sn_input').val().trim();
+	var snMatch = raw.match(/sn=(\d+)/i);
+	var sn = snMatch ? snMatch[1] : raw.replace(/\D/g, '');
+	if (!sn) { $('#plex_sn_info').text('請先輸入 SN'); return; }
+
+	$('#plex_sn_info').text('正在查詢第一集...').removeClass('text-red-400').addClass('text-gray-500');
+	$.ajax({
+		type: 'get',
+		url: 'data/anime_first_sn?sn=' + sn,
+		dataType: 'json',
+		success: function(data) {
+			if (data.error) {
+				$('#plex_sn_info').text('查詢失敗：' + data.error).removeClass('text-gray-500').addClass('text-red-400');
+			} else {
+				$('#plex_sn_input').val(data.first_sn);
+				$('#plex_sn_info').text('第一集 SN: ' + data.first_sn + (data.title ? ' — ' + data.title : '')).removeClass('text-red-400').addClass('text-gray-500');
+				if (data.title && !$('#plex_folder_input').val().trim()) {
+					$('#plex_folder_input').val(data.title);
+				}
+				updateSnListPreview();
+			}
+		},
+		error: function(xhr) {
+			var msg = '查詢失敗';
+			try { var r = JSON.parse(xhr.responseText); if (r.error) msg += '：' + r.error; } catch(e) {}
+			$('#plex_sn_info').text(msg).removeClass('text-gray-500').addClass('text-red-400');
+		}
+	});
+}
+
 function addSnListLine() {
 	var line = generateSnListLine();
 	if (!line) {
@@ -337,6 +368,7 @@ $(function() {
 });
 
 function loadSchedule() {
+	hideSubscribeForm(); // 先將表單移回錨點，避免被 tbody 清空時銷毀
 	$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>');
 	$('#schedule_error').addClass('hidden');
 
@@ -435,7 +467,7 @@ function renderScheduleTable(items) {
 					'<button class="bg-blue-700 hover:bg-blue-600 text-white text-xs rounded px-2 py-1 transition-colors" onclick="forceCheckAnime(\'' + titleAttr + '\')">立即檢查</button>';
 			} else {
 				actions =
-					'<button class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded px-2 py-1 transition-colors" onclick="showSubscribeForm(' + item.sn + ', \'' + titleAttr + '\')">訂閱</button>';
+					'<button class="bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded px-2 py-1 transition-colors" onclick="showSubscribeForm(' + item.sn + ', \'' + titleAttr + '\', this)">訂閱</button>';
 			}
 
 			// 動畫瘋連結
@@ -465,7 +497,7 @@ function renderScheduleTable(items) {
 }
 
 // --- 訂閱表單 ---
-function showSubscribeForm(sn, title) {
+function showSubscribeForm(sn, title, btnEl) {
 	var div = document.createElement('div');
 	div.innerHTML = title;
 	var cleanTitle = div.textContent || div.innerText || '';
@@ -473,39 +505,66 @@ function showSubscribeForm(sn, title) {
 	$('#sub_sn').val(sn);
 	$('#sub_folder').val(cleanTitle);
 	$('#sub_title').val('');
-	$('#sub_season').val('');
-	$('#sub_ep_offset').val('');
+	$('#sub_season').val('1');
+	$('#sub_ep_offset').val('0');
 	$('#sub_comment').val('');
-	$('#sub_sn_info').text('排程 SN: ' + sn + ' (最新集，正在查詢第一集...)');
+	$('#sub_sn_info').text('');
 	$('#sub_mode').val('latest');
 	updateSubscribePreview();
-	$('#subscribe_form').removeClass('hidden');
+
+	// 移除先前插入的表單行
+	$('.subscribe-form-row').remove();
+
+	// 將表單插入到點擊行的下方
+	var $form = $('#subscribe_form').removeClass('hidden');
+	var $clickedRow = btnEl ? $(btnEl).closest('tr') : null;
+	if ($clickedRow && $clickedRow.length) {
+		var $formRow = $('<tr class="subscribe-form-row"><td colspan="5" class="p-0"></td></tr>');
+		$formRow.find('td').append($form);
+		$clickedRow.after($formRow);
+		// 捲動至表單
+		setTimeout(function() {
+			$form[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}, 50);
+	}
+
 	fetchFirstSn();
 }
 
 function hideSubscribeForm() {
-	$('#subscribe_form').addClass('hidden');
+	var $form = $('#subscribe_form').addClass('hidden');
+	// 將表單移回原位（排程表格外的隱藏容器）
+	$('#subscribe_form_anchor').append($form);
+	$('.subscribe-form-row').remove();
 }
 
 function fetchFirstSn() {
 	var sn = $('#sub_sn').val();
 	if (!sn) return;
 
+	$('#sub_sn_info').text('正在查詢第一集...').removeClass('text-red-400').addClass('text-gray-500');
 	$.ajax({
 		type: 'get',
 		url: 'data/anime_first_sn?sn=' + sn,
 		dataType: 'json',
 		success: function(data) {
 			if (data.error) {
-				$('#sub_sn_info').text('查詢失敗：' + data.error);
+				$('#sub_sn_info').text('查詢失敗：' + data.error).removeClass('text-gray-500').addClass('text-red-400');
 			} else {
 				$('#sub_sn').val(data.first_sn);
-				$('#sub_sn_info').text('第一集 SN: ' + data.first_sn + ' (原查詢: ' + data.query_sn + ')');
+				var info = '第一集 SN: ' + data.first_sn;
+				if (data.title) info += ' — ' + data.title;
+				$('#sub_sn_info').text(info).removeClass('text-red-400').addClass('text-gray-500');
+				if (data.title && !$('#sub_folder').val().trim()) {
+					$('#sub_folder').val(data.title);
+				}
 				updateSubscribePreview();
 			}
 		},
-		error: function() {
-			$('#sub_sn_info').text('查詢失敗');
+		error: function(xhr) {
+			var msg = '查詢失敗';
+			try { var r = JSON.parse(xhr.responseText); if (r.error) msg += '：' + r.error; } catch(e) {}
+			$('#sub_sn_info').text(msg).removeClass('text-gray-500').addClass('text-red-400');
 		}
 	});
 }
@@ -558,6 +617,7 @@ function submitSubscribe() {
 			if (data.status === 200) {
 				alert('訂閱成功！\n' + data.line);
 				hideSubscribeForm();
+				showSnList(); // 同步刷新 sn_list textarea
 				loadSchedule();
 			} else {
 				alert('訂閱失敗：' + (data.error || '未知錯誤'));
@@ -584,6 +644,7 @@ function unsubscribeAnime(title) {
 		success: function(data) {
 			if (data.removed) {
 				alert('已取消訂閱 (SN=' + data.sn + ')');
+				showSnList(); // 同步刷新 sn_list textarea
 				loadSchedule();
 			} else {
 				alert('取消訂閱失敗：' + (data.error || '未找到對應條目'));

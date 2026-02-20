@@ -188,7 +188,7 @@ def get_schedule():
     """回傳排程資料供前端顯示"""
     global _schedule_cache
     try:
-        from aniGamerPlus import sn_dict
+        sn_dict = Config.read_sn_list()
         settings = Config.read_settings()
         # 優先使用快取的排程實例 (內建 1 小時快取 TTL)
         if _schedule_cache is None:
@@ -201,16 +201,43 @@ def get_schedule():
         sn_set = set(sn_dict.keys()) if sn_dict else set()
         # 從 sn_dict 收集所有標題提示 (clean_title, folder_name, rename)
         title_hints = set()
+        sns_without_hints = []  # 沒有標題提示的 SN，需從 DB 查詢
         if sn_dict:
-            for sn_info in sn_dict.values():
+            for list_sn, sn_info in sn_dict.items():
+                has_hint = False
                 plex = sn_info.get('plex')
                 if plex:
                     if plex.get('clean_title'):
                         title_hints.add(plex['clean_title'])
+                        has_hint = True
                     if plex.get('folder_name'):
                         title_hints.add(plex['folder_name'])
-                elif sn_info.get('rename'):
+                        has_hint = True
+                if sn_info.get('rename'):
                     title_hints.add(sn_info['rename'])
+                    has_hint = True
+                if not has_hint:
+                    sns_without_hints.append(list_sn)
+        # 對於沒有 Plex/rename 標題的 sn_list 條目，從 DB 查詢 anime_name 補充
+        if sns_without_hints:
+            try:
+                import sqlite3
+                db_path = os.path.join(Config.get_working_dir(), 'aniGamer.db')
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    placeholders = ','.join('?' for _ in sns_without_hints)
+                    cursor.execute(
+                        'SELECT DISTINCT anime_name FROM anime WHERE sn IN (' + placeholders + ')',
+                        sns_without_hints
+                    )
+                    for row in cursor.fetchall():
+                        if row[0]:
+                            title_hints.add(row[0])
+                    cursor.close()
+                    conn.close()
+            except Exception:
+                pass
         for item in data.get('items', []):
             if item['sn'] in sn_set:
                 item['in_sn_list'] = True
@@ -228,23 +255,31 @@ def get_schedule():
         return jsonify({'error': str(e), 'last_fetch': None, 'schedule': {}, 'items': []})
 
 
+_first_sn_cache = {}  # {sn_str: {'data': dict, 'time': float}}
+_FIRST_SN_CACHE_TTL = 3600  # 快取 1 小時
+
 @app.route('/data/anime_first_sn', methods=['GET'])
 def get_anime_first_sn():
-    """查詢動畫第一集 SN 和標題"""
+    """查詢動畫第一集 SN 和標題（含記憶體快取）"""
     sn = request.args.get('sn', '')
     if not sn or not sn.isdigit():
         return jsonify({'error': '無效的 SN'}), 400
+    # 檢查快取
+    cached = _first_sn_cache.get(sn)
+    if cached and (time.time() - cached['time']) < _FIRST_SN_CACHE_TTL:
+        return jsonify(cached['data'])
     try:
         import requests as req_lib
         from bs4 import BeautifulSoup
         settings = Config.read_settings()
         ua = settings.get('ua', '')
-        cookie_str = Config.read_cookie()
+        cookie_dict = Config.read_cookie()
         headers = {'User-Agent': ua}
-        if cookie_str:
-            headers['Cookie'] = cookie_str
+        cookies = {}
+        if isinstance(cookie_dict, dict):
+            cookies = cookie_dict
         url = 'https://ani.gamer.com.tw/animeVideo.php?sn=' + sn
-        resp = req_lib.get(url, headers=headers, timeout=15)
+        resp = req_lib.get(url, headers=headers, cookies=cookies, timeout=15)
         soup = BeautifulSoup(resp.content, 'html.parser')
         # 提取標題
         anime_title = ''
@@ -263,18 +298,21 @@ def get_anime_first_sn():
                     ep_sn = int(sn_match[0])
                     if ep_sn < first_sn:
                         first_sn = ep_sn
-        return jsonify({
+        result = {
             'first_sn': first_sn,
             'title': anime_title,
             'query_sn': int(sn)
-        })
+        }
+        # 寫入快取
+        _first_sn_cache[sn] = {'data': result, 'time': time.time()}
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 def _find_sn_by_title(title):
     """在 sn_dict 中透過標題比對找到對應的 SN"""
-    from aniGamerPlus import sn_dict
+    sn_dict = Config.read_sn_list()
     for list_sn, info in (sn_dict or {}).items():
         plex = info.get('plex')
         if plex:
