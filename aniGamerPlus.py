@@ -148,11 +148,8 @@ def insert_db(anime):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    try:
-        cursor.execute("INSERT INTO anime (sn, title, anime_name, episode) VALUES (:sn, :title, :anime_name, :episode)",
-                       anime_dict)
-    except sqlite3.IntegrityError as e:
-        err_print(anime_dict['sn'], 'ＤＢ错误', 'title=' + anime_dict['title'] + ' 数据已存在！' + str(e), status=1)
+    cursor.execute("INSERT OR IGNORE INTO anime (sn, title, anime_name, episode) VALUES (:sn, :title, :anime_name, :episode)",
+                   anime_dict)
 
     cursor.close()
     conn.commit()
@@ -375,6 +372,8 @@ def check_tasks(sn_subset=None):
                 #           未下载的   或                设定要上传但是没上传的                         并且  还没在列队中
                 if (db['status'] == 0 or (db['remote_status'] == 0 and settings['upload_to_server'])) and latest_sn not in queue.keys():
                     queue[latest_sn] = check_dict[sn]  # 添加至下载列队
+                elif db['status'] != 0:
+                    err_print(latest_sn, '更新資訊', '已下載完成，略過')
             except IndexError:
                 # 如果数据库中尚不存在此条记录
                 if anime.get_sn() == latest_sn:
