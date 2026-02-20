@@ -352,7 +352,7 @@
 	<!-- sn_list Modal -->
 	<div id="snListModal" class="fixed inset-0 z-50 hidden flex items-start justify-center pt-10 px-4">
 		<div class="fixed inset-0 bg-black/60" onclick="closeModal('snListModal')"></div>
-		<div class="relative w-full max-w-4xl bg-gray-900 rounded-md shadow-2xl border border-gray-700 max-h-[90vh] flex flex-col">
+		<div class="relative w-full max-w-5xl bg-gray-900 rounded-md shadow-2xl border border-gray-700 max-h-[90vh] flex flex-col">
 			<div class="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
 				<h3 class="text-lg font-bold text-gray-100">sn_list</h3>
 				<button onclick="closeModal('snListModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
@@ -372,27 +372,55 @@
 				<!-- 快速新增 -->
 				<div class="bg-gray-800/50 rounded-md border border-gray-700 p-4">
 					<h4 class="text-sm font-bold text-gray-300 mb-3">快速新增</h4>
-					<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-						<input id="plex_sn_input" type="text" placeholder="SN 或巴哈連結"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-1">
-						<select id="plex_mode_select"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-							<option value="latest">latest</option><option value="all">all</option><option value="largest-sn">largest-sn</option>
-						</select>
-						<input id="plex_folder_input" type="text" placeholder="Plex 資料夾 (可空)"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-2">
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-1">
+						<div>
+							<label class="text-sm text-gray-400">SN 號碼 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="輸入動畫瘋 SN 碼或完整網址，點擊「查詢第一集」可自動取得第一集 SN"></i></label>
+							<div class="flex gap-1">
+								<input id="plex_sn_input" type="text" placeholder="SN 或巴哈連結"
+									class="flex-1 min-w-0 bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+								<button type="button" onclick="fetchFirstSnForSnList()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-md px-2 py-1 whitespace-nowrap transition-colors shrink-0">查詢第一集</button>
+							</div>
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">下載模式 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="latest: 僅最後一集 / all: 全部劇集 / largest-sn: 最近上傳的一集"></i></label>
+							<select id="plex_mode_select"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+								<option value="latest">latest (最後一集)</option>
+								<option value="all">all (全部劇集)</option>
+								<option value="largest-sn">largest-sn (最近上傳)</option>
+							</select>
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">Plex 資料夾名 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 {folder} 語法，指定儲存資料夾名稱（可空，空則用番劇名）"></i></label>
+							<input id="plex_folder_input" type="text" placeholder="(可空)"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
 					</div>
+					<small id="plex_sn_info" class="text-xs text-gray-500 block mb-2">&nbsp;</small>
 					<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
-						<input id="plex_title_input" type="text" placeholder="檔名標題 (可空)"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors col-span-2 md:col-span-2">
-						<input id="plex_season_input" type="number" min="0" step="1" placeholder="季數"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-						<input id="plex_ep_offset_input" type="number" min="0" step="1" placeholder="集數偏移"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-						<input id="plex_comment_input" type="text" placeholder="註釋"
-							class="bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						<div class="col-span-2">
+							<label class="text-sm text-gray-400">檔名標題 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 <title> 語法，用於檔名中的番劇名部分（可空）"></i></label>
+							<input id="plex_title_input" type="text" placeholder="(可空)"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">季數 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 (S##) 語法，產生 Plex S##E## 格式"></i></label>
+							<input id="plex_season_input" type="number" min="0" step="1" placeholder="1"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">集數偏移 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="偏移集數編號，例如第2季從第13集開始則填 12"></i></label>
+							<input id="plex_ep_offset_input" type="number" min="0" step="1" placeholder="0"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
+						<div>
+							<label class="text-sm text-gray-400">註釋 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 # 語法，備忘用文字"></i></label>
+							<input id="plex_comment_input" type="text" placeholder="(可空)"
+								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+						</div>
 					</div>
 					<div class="flex items-center gap-2">
+						<label class="text-sm text-gray-400 shrink-0">預覽</label>
 						<code id="plex_preview" class="flex-1 bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em]">&nbsp;</code>
 						<button type="button" onclick="addSnListLine()"
 							class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-md px-4 py-1.5 transition-colors">加入</button>
@@ -450,24 +478,25 @@
 				</div>
 				<div id="schedule_error" class="hidden bg-yellow-900/30 border border-yellow-700 text-yellow-300 rounded-md px-4 py-2 text-sm mb-4"></div>
 
-				<!-- 訂閱表單 -->
-				<div id="subscribe_form" class="hidden bg-gray-800/50 rounded-md border border-gray-700 p-4 mb-4">
+				<!-- 訂閱表單（動態插入至排程表格中，此處為隱藏容器） -->
+				<div id="subscribe_form_anchor" class="hidden">
+				</div>
+				<div id="subscribe_form" class="hidden bg-gray-800/50 rounded-md border border-gray-700 p-4">
 					<div class="flex items-center justify-between mb-3">
 						<h4 class="text-sm font-bold text-gray-300">訂閱動畫</h4>
 						<button onclick="hideSubscribeForm()" class="text-gray-400 hover:text-white text-xl">&times;</button>
 					</div>
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-1">
 						<div>
-							<label class="text-sm text-gray-400">SN 號碼</label>
+							<label class="text-sm text-gray-400">SN 號碼 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="動畫瘋 SN 碼，點擊「查詢第一集」可自動取得該番劇第一集的 SN"></i></label>
 							<div class="flex gap-1">
 								<input id="sub_sn" type="text"
-									class="flex-1 bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-								<button onclick="fetchFirstSn()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-md px-2 py-1 whitespace-nowrap transition-colors">查詢第一集</button>
+									class="flex-1 min-w-0 bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+								<button onclick="fetchFirstSn()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-md px-2 py-1 whitespace-nowrap transition-colors shrink-0">查詢第一集</button>
 							</div>
-							<small id="sub_sn_info" class="text-xs text-gray-500"></small>
 						</div>
 						<div>
-							<label class="text-sm text-gray-400">下載模式</label>
+							<label class="text-sm text-gray-400">下載模式 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="latest: 僅最後一集 / all: 全部劇集 / largest-sn: 最近上傳的一集"></i></label>
 							<select id="sub_mode"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 								<option value="latest">latest (最後一集)</option>
@@ -476,36 +505,37 @@
 							</select>
 						</div>
 						<div>
-							<label class="text-sm text-gray-400">Plex 資料夾名</label>
+							<label class="text-sm text-gray-400">Plex 資料夾名 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 {folder} 語法，指定儲存資料夾名稱（可空，空則用番劇名）"></i></label>
 							<input id="sub_folder" type="text" placeholder="如：葬送的芙莉蓮 第二季"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 					</div>
-					<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-						<div>
-							<label class="text-sm text-gray-400">檔名標題 (可空)</label>
-							<input id="sub_title" type="text"
+					<small id="sub_sn_info" class="text-xs text-gray-500 block mb-2"></small>
+					<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
+						<div class="col-span-2">
+							<label class="text-sm text-gray-400">檔名標題 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 <title> 語法，用於檔名中的番劇名部分（可空）"></i></label>
+							<input id="sub_title" type="text" placeholder="(可空)"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 						<div>
-							<label class="text-sm text-gray-400">季數</label>
+							<label class="text-sm text-gray-400">季數 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 (S##) 語法，產生 Plex S##E## 格式"></i></label>
 							<input id="sub_season" type="number" min="0" step="1" placeholder="1"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 						<div>
-							<label class="text-sm text-gray-400">集數偏移</label>
+							<label class="text-sm text-gray-400">集數偏移 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="偏移集數編號，例如第2季從第13集開始則填 12"></i></label>
 							<input id="sub_ep_offset" type="number" min="0" step="1" placeholder="0"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 						<div>
-							<label class="text-sm text-gray-400">註釋</label>
+							<label class="text-sm text-gray-400">註釋 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="對應 # 語法，備忘用文字"></i></label>
 							<input id="sub_comment" type="text" placeholder="(可空)"
 								class="w-full bg-gray-800 text-gray-100 border border-gray-600 rounded-md px-3 py-1.5 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 						</div>
 					</div>
-					<div class="mb-3">
-						<label class="text-sm text-gray-400">預覽</label>
-						<code id="sub_preview" class="block bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em]">&nbsp;</code>
+					<div class="flex items-center gap-2 mb-3">
+						<label class="text-sm text-gray-400 shrink-0">預覽</label>
+						<code id="sub_preview" class="flex-1 bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em]">&nbsp;</code>
 					</div>
 					<div class="flex gap-2">
 						<button onclick="submitSubscribe()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-md px-4 py-1.5 transition-colors">確認訂閱</button>
