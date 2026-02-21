@@ -333,6 +333,50 @@
 					<input id="manual_thread_limit" type="number" min="1" step="1" placeholder="正整數"
 						class="w-32 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
+				<!-- 檔名預覽 + 命名設定 -->
+				<div class="border-t border-gray-700 pt-4 mt-2 space-y-3">
+					<div class="flex items-start gap-3">
+						<label class="w-32 shrink-0 text-sm text-gray-400 text-right pt-1">檔名預覽</label>
+						<code id="manual_preview" class="flex-1 bg-gray-900 text-green-400 text-xs rounded px-3 py-1.5 min-h-[1.5em] break-all">&nbsp;</code>
+					</div>
+					<div class="flex items-center gap-3">
+						<label class="w-32 shrink-0 text-sm text-gray-400 text-right">智慧預填
+							<i class="fas fa-question-circle text-xs text-gray-600 cursor-help"
+							   title="開啟後自動從訂閱清單或動畫標題填入命名欄位"></i>
+						</label>
+						<label class="toggle-switch"><input type="checkbox" id="manual_plex_toggle" onchange="toggleManualPlex()"><div class="toggle-slider"></div></label>
+					</div>
+					<div class="flex items-center gap-3">
+						<label class="w-32 shrink-0 text-sm text-gray-400 text-right">資料夾名
+							<i class="fas fa-question-circle text-xs text-gray-600 cursor-help"
+							   title="輸出資料夾名稱，留空則使用預設行為"></i>
+						</label>
+						<input id="manual_plex_folder" type="text" placeholder="留空 = 預設"
+							class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors"
+							oninput="updateManualPreview()">
+					</div>
+					<div class="flex items-center gap-3">
+						<label class="w-32 shrink-0 text-sm text-gray-400 text-right">檔名標題
+							<i class="fas fa-question-circle text-xs text-gray-600 cursor-help"
+							   title="Plex 檔名中的標題部分，留空則使用資料夾名"></i>
+						</label>
+						<input id="manual_plex_title" type="text" placeholder="留空 = 同資料夾名"
+							class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors"
+							oninput="updateManualPreview()">
+					</div>
+					<div class="flex items-center gap-3">
+						<label class="w-32 shrink-0 text-sm text-gray-400 text-right">季數 / 偏移
+							<i class="fas fa-question-circle text-xs text-gray-600 cursor-help"
+							   title="季數: S## 的數字，OVA/劇場版用 0。偏移: 集數偏移量，如第2季從13集開始則填 12"></i>
+						</label>
+						<input id="manual_plex_season" type="number" min="0" step="1" placeholder="自動"
+							class="w-24 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors"
+							oninput="updateManualPreview()">
+						<input id="manual_plex_offset" type="number" min="0" step="1" placeholder="0"
+							class="w-24 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors"
+							oninput="updateManualPreview()">
+					</div>
+				</div>
 			</div>
 			<div class="flex justify-end gap-2 p-4 border-t border-gray-700">
 				<button onclick="readManualConfig()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-md px-5 py-2 transition-colors">提交</button>

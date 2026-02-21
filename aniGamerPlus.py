@@ -395,7 +395,7 @@ def check_tasks(sn_subset=None):
         #     time.sleep(settings['parse_sn_cd'])
 
 
-def __download_only(sn, dl_resolution='', dl_save_dir='', realtime_show_file_size=False, classify=True, force_download=False):
+def __download_only(sn, dl_resolution='', dl_save_dir='', realtime_show_file_size=False, classify=True, force_download=False, plex_info=None):
     # 仅下载,不操作数据库
     thread_limiter.acquire()
     err_counter = 0
@@ -407,9 +407,9 @@ def __download_only(sn, dl_resolution='', dl_save_dir='', realtime_show_file_siz
 
     try:
         if dl_resolution:
-            anime.download(dl_resolution, dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+            anime.download(dl_resolution, dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
         else:
-            anime.download(settings['download_resolution'], dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+            anime.download(settings['download_resolution'], dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
     except BaseException as e:
         err_print(sn, '下載異常', '發生未知異常: ' + str(e), status=1)
         err_print(sn, '下載異常', '異常詳情:\n'+traceback.format_exc(), status=1, display=False)
@@ -432,9 +432,9 @@ def __download_only(sn, dl_resolution='', dl_save_dir='', realtime_show_file_siz
 
             try:
                 if dl_resolution:
-                    anime.download(dl_resolution, dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+                    anime.download(dl_resolution, dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
                 else:
-                    anime.download(settings['download_resolution'], dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+                    anime.download(settings['download_resolution'], dl_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
             except BaseException as e:
                 err_print(sn, '下載異常', '發生未知異常: ' + str(e), status=1)
                 err_print(sn, '下載異常', '異常詳情:\n'+traceback.format_exc(), status=1, display=False)
@@ -489,7 +489,7 @@ def __get_danmu_only(sn, bangumi_name, video_path):
 
 
 def __cui(sn, cui_resolution, cui_download_mode, cui_thread_limit, ep_range,
-          cui_save_dir='', classify=True, get_info=False, user_cmd=False, realtime_show=True, cui_danmu=False, force_download=False):
+          cui_save_dir='', classify=True, get_info=False, user_cmd=False, realtime_show=True, cui_danmu=False, force_download=False, plex_info=None):
     global thread_limiter
     thread_limiter = threading.Semaphore(cui_thread_limit)
 
@@ -513,7 +513,7 @@ def __cui(sn, cui_resolution, cui_download_mode, cui_thread_limit, ep_range,
         if get_info:
             __get_info_only(sn)
         else:
-            __download_only(sn, cui_resolution, cui_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+            __download_only(sn, cui_resolution, cui_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
 
     elif cui_download_mode == 'latest' or cui_download_mode == 'largest-sn':
         if cui_download_mode == 'latest':
@@ -540,7 +540,7 @@ def __cui(sn, cui_resolution, cui_download_mode, cui_thread_limit, ep_range,
         if get_info:
             __get_info_only(bangumi_list[-1])
         else:
-            __download_only(bangumi_list[-1], cui_resolution, cui_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download)
+            __download_only(bangumi_list[-1], cui_resolution, cui_save_dir, realtime_show_file_size=realtime_show_file_size, classify=classify, force_download=force_download, plex_info=plex_info)
 
     elif cui_download_mode == 'all':
         if get_info:
@@ -560,7 +560,7 @@ def __cui(sn, cui_resolution, cui_download_mode, cui_thread_limit, ep_range,
             if get_info:
                 task = threading.Thread(target=__get_info_only, args=(anime_sn,))
             else:
-                task = threading.Thread(target=__download_only, args=(anime_sn, cui_resolution, cui_save_dir, realtime_show_file_size, classify, force_download))
+                task = threading.Thread(target=__download_only, args=(anime_sn, cui_resolution, cui_save_dir, realtime_show_file_size, classify, force_download, plex_info))
             task.daemon = True
             thread_tasks.append(task)
             task.start()

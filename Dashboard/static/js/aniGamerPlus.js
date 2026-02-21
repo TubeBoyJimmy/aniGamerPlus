@@ -61,6 +61,7 @@ function updateThemeIcon() {
 }
 
 $(function() { updateThemeIcon(); });
+$(function() { initManualLinkListener(); });
 
 // === 導航列手機版 toggle ===
 $(function() {
@@ -212,6 +213,133 @@ function getUA() {
 }
 
 // === 手動任務 ===
+var _manualPreviewData = null;  // 快取查詢結果 {title, episode, default_filename, suggest}
+var _manualPreviewTimer = null; // debounce timer
+
+function _extractSn(raw) {
+	return raw.replace(/(https:\/\/)?ani\.gamer\.com\.tw\/animeVideo\.php\?sn=/i, '').replace(/\D/g, '');
+}
+
+function initManualLinkListener() {
+	$('#manual_link').on('input', function() {
+		clearTimeout(_manualPreviewTimer);
+		_manualPreviewTimer = setTimeout(function() {
+			fetchManualPreview();
+		}, 500);
+	});
+	$('#manual_resolution').on('change', function() { updateManualPreview(); });
+}
+
+function fetchManualPreview() {
+	var sn = _extractSn($('#manual_link').val());
+	if (!sn) {
+		_manualPreviewData = null;
+		$('#manual_preview').html('&nbsp;');
+		return;
+	}
+	// SN 變更時重置命名欄位和 toggle
+	$('#manual_plex_toggle').prop('checked', false);
+	$('#manual_plex_folder').val('');
+	$('#manual_plex_title').val('');
+	$('#manual_plex_season').val('');
+	$('#manual_plex_offset').val('');
+	_manualPreviewData = null;
+	$('#manual_preview').text('查詢中...').removeClass('text-green-400').addClass('text-gray-500');
+	$.ajax({
+		type: 'get',
+		url: 'data/manual_preview?sn=' + sn,
+		dataType: 'json',
+		success: function(data) {
+			if (data.error) {
+				$('#manual_preview').text('查詢失敗: ' + data.error).removeClass('text-gray-500').addClass('text-red-400');
+				_manualPreviewData = null;
+				return;
+			}
+			_manualPreviewData = data;
+			$('#manual_preview').removeClass('text-gray-500 text-red-400').addClass('text-green-400');
+			// 如果 toggle 已開啟，自動預填
+			if (document.getElementById('manual_plex_toggle').checked) {
+				_applyManualSuggest();
+			}
+			updateManualPreview();
+		},
+		error: function() {
+			$('#manual_preview').text('查詢失敗').removeClass('text-gray-500').addClass('text-red-400');
+			_manualPreviewData = null;
+		}
+	});
+}
+
+function updateManualPreview() {
+	if (!_manualPreviewData) {
+		$('#manual_preview').html('&nbsp;');
+		return;
+	}
+	var folder = $('#manual_plex_folder').val().trim();
+	if (!folder) {
+		// 無命名設定 → 顯示預設檔名
+		$('#manual_preview').text(_manualPreviewData.default_filename);
+		return;
+	}
+	// 有命名設定 → 計算 Plex 格式預覽
+	var title = $('#manual_plex_title').val().trim() || folder;
+	var season = $('#manual_plex_season').val();
+	var offset = parseInt($('#manual_plex_offset').val()) || 0;
+	var episode = _manualPreviewData.episode;
+	// 季數: 空值時使用 suggest 的季數
+	var seasonNum = (season !== '' && season !== null) ? parseInt(season) : (_manualPreviewData.suggest ? _manualPreviewData.suggest.season_num : 1);
+	if (isNaN(seasonNum)) seasonNum = 1;
+	// 計算 Plex 檔名
+	var ext = 'mp4';
+	var epNum = parseInt(episode);
+	var filename;
+	if (isNaN(epNum)) {
+		// 非數字集數 (特別篇/電影等) → S00
+		var nums = episode.match(/\d+/);
+		var epStr = nums ? String(nums[0]).padStart(2, '0') : '01';
+		filename = title + ' S00E' + epStr + '.' + ext;
+	} else {
+		if (offset > 0 && epNum > offset) {
+			epNum = epNum - offset;
+		}
+		epNum = Math.max(epNum, 1);
+		var seasonStr = String(seasonNum).padStart(2, '0');
+		var epStr = String(epNum).padStart(2, '0');
+		filename = title + ' S' + seasonStr + 'E' + epStr + '.' + ext;
+	}
+	$('#manual_preview').text(folder + '/' + filename);
+}
+
+function _applyManualSuggest() {
+	if (!_manualPreviewData || !_manualPreviewData.suggest) return;
+	var s = _manualPreviewData.suggest;
+	// 強制覆寫所有欄位
+	$('#manual_plex_folder').val(s.folder_name || '');
+	$('#manual_plex_title').val(s.clean_title || '');
+	$('#manual_plex_season').val(s.season_num !== undefined ? s.season_num : '');
+	$('#manual_plex_offset').val(s.ep_offset || 0);
+}
+
+function toggleManualPlex() {
+	if (document.getElementById('manual_plex_toggle').checked) {
+		// ON: 預填
+		if (_manualPreviewData) {
+			_applyManualSuggest();
+			updateManualPreview();
+		} else {
+			// 尚未查詢，觸發查詢
+			fetchManualPreview();
+		}
+	} else {
+		// OFF: 清空命名欄位
+		$('#manual_plex_folder').val('');
+		$('#manual_plex_title').val('');
+		$('#manual_plex_season').val('');
+		$('#manual_plex_offset').val('');
+		updateManualPreview();
+	}
+}
+
 function readManualConfig() {
 	var link = $('#manual_link').val();
 	if (link.length === 0) {
@@ -219,15 +347,31 @@ function readManualConfig() {
 		return;
 	}
 
-	var sn = link.replace(/(https:\/\/)?ani\.gamer\.com\.tw\/animeVideo\.php\?sn=/i, '');
+	var sn = _extractSn(link);
 	var manualData = {
 		sn: sn,
 		mode: $('#manual_mode').val(),
 		resolution: $('#manual_resolution').val().replace('P', ''),
 		classify: document.getElementById('manual_classify').checked,
 		thread: $('#manual_thread_limit').val(),
-		danmu: document.getElementById('manual_danmu').checked
+		danmu: document.getElementById('manual_danmu').checked,
+		plex_info: null
 	};
+
+	// 如果有填入資料夾名，構建 plex_info
+	var folder = $('#manual_plex_folder').val().trim();
+	if (folder) {
+		var title = $('#manual_plex_title').val().trim() || folder;
+		var season = $('#manual_plex_season').val();
+		var seasonNum = (season !== '' && season !== null) ? parseInt(season) : -1;
+		var offset = parseInt($('#manual_plex_offset').val()) || 0;
+		manualData.plex_info = {
+			folder_name: folder,
+			clean_title: title,
+			season_num: isNaN(seasonNum) ? -1 : seasonNum,
+			ep_offset: offset
+		};
+	}
 
 	$.ajax({
 		url: '/manualTask',

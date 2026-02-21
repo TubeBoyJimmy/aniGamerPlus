@@ -136,8 +136,23 @@ def manual_task():
     else:
         thread_limit = thread
 
+    # Plex 命名
+    plex_info = data.get('plex_info', None)
+    if plex_info is not None:
+        if not plex_info.get('folder_name'):
+            plex_info = None
+        else:
+            plex_info['ep_offset'] = int(plex_info.get('ep_offset', 0))
+            if not plex_info.get('clean_title'):
+                plex_info['clean_title'] = plex_info['folder_name']
+            season = int(plex_info.get('season_num', -1))
+            if season < 0:
+                # 季數未指定，自動偵測
+                season = Config.detect_season_from_name(plex_info['folder_name'])
+            plex_info['season_num'] = season
+
     def run_cui():
-        cui(data['sn'], resolution, mode, thread_limit, [], classify=data['classify'], realtime_show=False, cui_danmu=data['danmu'], force_download=True)
+        cui(data['sn'], resolution, mode, thread_limit, [], classify=data['classify'], realtime_show=False, cui_danmu=data['danmu'], force_download=True, plex_info=plex_info)
 
     server = threading.Thread(target=run_cui)
     err_print(0, 'Dashboard', '通過 Web 控制臺下達了手動任務', no_sn=True, status=2)
@@ -306,6 +321,103 @@ def get_anime_first_sn():
             'query_sn': int(sn)
         }
         # 寫入快取
+        _first_sn_cache[sn] = {'data': result, 'time': time.time()}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/data/manual_preview', methods=['GET'])
+def manual_preview():
+    """手動下載預覽：回傳動畫標題、集數、預設檔名、智慧預填建議"""
+    sn = request.args.get('sn', '')
+    if not sn or not sn.isdigit():
+        return jsonify({'error': '無效的 SN'}), 400
+    # 檢查快取
+    cached = _first_sn_cache.get(sn)
+    if cached and (time.time() - cached['time']) < _FIRST_SN_CACHE_TTL and 'episode' in cached['data']:
+        return jsonify(cached['data'])
+    try:
+        import requests as req_lib
+        from bs4 import BeautifulSoup
+        settings = Config.read_settings()
+        ua = settings.get('ua', '')
+        cookie_dict = Config.read_cookie()
+        headers = {'User-Agent': ua}
+        cookies = cookie_dict if isinstance(cookie_dict, dict) else {}
+        url = 'https://ani.gamer.com.tw/animeVideo.php?sn=' + sn
+        resp = req_lib.get(url, headers=headers, cookies=cookies, timeout=15)
+        soup = BeautifulSoup(resp.content, 'html.parser')
+        # 提取完整標題 (含集數)
+        full_title = ''
+        title_el = soup.find('div', 'anime_name')
+        if title_el and title_el.h1:
+            full_title = title_el.h1.get_text(strip=True)
+        # 提取集數
+        episode = '1'
+        playing_li = soup.find('li', 'playing')
+        if playing_li and playing_li.a:
+            episode = playing_li.a.get_text(strip=True)
+        elif full_title:
+            ep_match = re.findall(r'\[\d*\.?\d*\s*\.?[A-Za-z]*(?:電影)?\]', full_title)
+            if ep_match:
+                episode = ep_match[0][1:-1]
+            elif re.findall(r'\[.+?\]', full_title):
+                episode = re.findall(r'\[.+?\]', full_title)[0][1:-1]
+        # 番劇名 (去掉集數後綴)
+        bangumi_name = full_title.replace('[' + episode + ']', '').strip() if full_title else ''
+        bangumi_name = re.sub(r'\s+', ' ', bangumi_name)
+        # 組合預設檔名
+        resolution = settings.get('download_resolution', '1080')
+        ext = settings.get('video_filename_extension', 'mp4')
+        if settings.get('add_bangumi_name_to_video_filename', True):
+            prefix = settings.get('customized_video_filename_prefix', '')
+            suffix_bn = settings.get('customized_bangumi_name_suffix', '')
+            default_filename = prefix + bangumi_name + suffix_bn + '[' + episode + ']'
+        else:
+            prefix = settings.get('customized_video_filename_prefix', '')
+            default_filename = prefix + '[' + episode + ']'
+        if settings.get('add_resolution_to_video_filename', False):
+            default_filename += '[' + resolution + 'P]'
+        default_filename += settings.get('customized_video_filename_suffix', '') + '.' + ext
+        # 智慧預填建議：先檢查 sn_list，再自動偵測
+        suggest = None
+        sn_dict = Config.read_sn_list()
+        sn_int = int(sn)
+        # 檢查此 SN 或同番劇的其他 SN 是否在 sn_list 中有 plex 設定
+        if sn_dict:
+            # 直接匹配
+            if sn_int in sn_dict and sn_dict[sn_int].get('plex'):
+                suggest = dict(sn_dict[sn_int]['plex'])
+                suggest['source'] = 'sn_list'
+            else:
+                # 透過標題比對找同番劇
+                for list_sn, info in sn_dict.items():
+                    plex = info.get('plex')
+                    if plex:
+                        ct = plex.get('clean_title', '')
+                        fn = plex.get('folder_name', '')
+                        if bangumi_name and ((ct and ct in bangumi_name) or (fn and fn in bangumi_name)):
+                            suggest = dict(plex)
+                            suggest['source'] = 'sn_list'
+                            break
+        if suggest is None and bangumi_name:
+            # 自動偵測
+            suggest = {
+                'folder_name': bangumi_name,
+                'clean_title': Config.derive_clean_title(bangumi_name),
+                'season_num': Config.detect_season_from_name(bangumi_name),
+                'ep_offset': 0,
+                'source': 'auto'
+            }
+        result = {
+            'title': bangumi_name,
+            'episode': episode,
+            'default_filename': default_filename,
+            'suggest': suggest,
+            'query_sn': sn_int
+        }
+        # 寫入快取 (擴充格式，相容 anime_first_sn)
         _first_sn_cache[sn] = {'data': result, 'time': time.time()}
         return jsonify(result)
     except Exception as e:
