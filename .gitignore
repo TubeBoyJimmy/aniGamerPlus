@@ -127,3 +127,12 @@ temp/
 cookie2.txt
 */*.iml
 **/.DS_Store
+
+# Build artifacts
+aniGamerPlus.exe
+
+# Local SSL certs (use repo default or generate your own)
+Dashboard/sslkey/server.crt.local
+Dashboard/sslkey/server.key.local
+Dashboard/sslkey/server.crt.bak
+Dashboard/sslkey/server.key.bak
