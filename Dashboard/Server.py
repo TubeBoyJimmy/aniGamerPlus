@@ -82,7 +82,7 @@ with open(id_list_path, 'r', encoding='utf-8') as f:
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('index.html', app_version=Config.aniGamerPlus_version)
 
 
 
