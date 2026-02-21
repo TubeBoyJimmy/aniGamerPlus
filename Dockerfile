@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.10-slim
 
 # 系統依賴 + ffmpeg + cifs-utils（掛載 SMB share）
 RUN apt-get update && \
