@@ -5,16 +5,55 @@ services:
   ani-gamer-plus:
     build:
       context: .
-    image: anigamerplus
-    container_name: "ani-gamer-plus"
+    image: anigamerplus:v1.0.0
+    container_name: ani-gamer-plus
+    restart: unless-stopped
+
+    # 需要 SYS_ADMIN 權限才能在容器內掛載 CIFS
+    cap_add:
+      - SYS_ADMIN
+
+    environment:
+      - TZ=Asia/Taipei
+
     volumes:
-      - "./downloads:/app/bangumi"
+      # === 設定檔 (bind mount) ===
       - type: bind
         source: ./config.json
         target: /app/config.json
       - type: bind
+        source: ./sn_list.txt
+        target: /app/sn_list.txt
+      - type: bind
+        source: ./cookie.txt
+        target: /app/cookie.txt
+
+      # === 資料庫 ===
+      - type: bind
         source: ./aniGamer.db
         target: /app/aniGamer.db
+
+      # === 日誌 ===
+      - ./logs:/app/logs
+
+      # === 下載暫存 ===
+      - ./temp:/app/temp
+
+      # === 動畫下載目錄 (CIFS 掛載 miniserver SMB share) ===
+      - anime_smb:/app/bangumi
+
     ports:
       - "5000:5000"
-    restart: unless-stopped
+
+volumes:
+  anime_smb:
+    driver: local
+    driver_opts:
+      type: cifs
+      # 請替換以下值：
+      #   WINDOWS_USER     → SMB 帳號
+      #   WINDOWS_PASSWORD → SMB 密碼
+      #   MINISERVER_IP    → miniserver IP 位址
+      #   share路徑        → 實際的 SMB share 名稱和子路徑
+      o: "username=WINDOWS_USER,password=WINDOWS_PASSWORD,vers=3.0,uid=0,gid=0,file_mode=0777,dir_mode=0777"
+      device: "//MINISERVER_IP/動畫/季番"

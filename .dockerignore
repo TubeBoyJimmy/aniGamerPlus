@@ -124,3 +124,15 @@ releases/
 logs/
 temp/
 cookie2.txt
+*/*.iml
+**/.DS_Store
+
+# Dev / build artifacts
+.claude/
+.git/
+.github/
+releases/
+master/
+screenshot/
+*.exe
+TEST_CHECKLIST.md
