@@ -1,10 +1,7 @@
-version: "3.9"
 name: ani-gamer-plus
 
 services:
   ani-gamer-plus:
-    build:
-      context: .
     image: anigamerplus:v1.0.0
     container_name: ani-gamer-plus
     restart: unless-stopped
@@ -37,6 +34,9 @@ services:
       - ./logs:/app/logs
 
       # === 下載暫存 ===
+      # 如有充足 RAM，可改為 tmpfs 以減少磁碟 I/O：
+      #   - type: tmpfs
+      #     target: /app/temp
       - ./temp:/app/temp
 
       # === 動畫下載目錄 (CIFS 掛載 miniserver SMB share) ===
