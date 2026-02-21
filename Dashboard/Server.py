@@ -177,6 +177,7 @@ def recent_logs():
 def set_sn_list():
     data = request.get_data(as_text=True)
     Config.write_sn_list(data)
+    Config.schedule_wake.set()  # 通知主迴圈重新計算排程
     err_print(0, 'Dashboard', '通過 Web 控制臺更新了 sn_list', no_sn=True, status=2)
     return '{"status":"200"}'
 
@@ -195,7 +196,8 @@ def get_schedule():
             from Schedule import AnimeSchedule
             _schedule_cache = AnimeSchedule(settings.get('ua', ''), schedule_delay=0)
         schedule = _schedule_cache
-        schedule.fetch_schedule()
+        force_refresh = request.args.get('force', '') == '1'
+        schedule.fetch_schedule(force=force_refresh)
         data = schedule.get_schedule_data()
         # 標記哪些項目在 sn_list 中 (透過 SN 直接匹配 + 標題比對)
         sn_set = set(sn_dict.keys()) if sn_dict else set()
@@ -363,6 +365,7 @@ def schedule_subscribe():
     else:
         new_content = line + '\n'
     Config.write_sn_list(new_content)
+    Config.schedule_wake.set()  # 通知主迴圈重新計算排程
     err_print(0, 'Dashboard', '通過排程頁面訂閱 ' + line, no_sn=True, status=2)
     return jsonify({'status': 200, 'line': line})
 
@@ -397,6 +400,7 @@ def schedule_unsubscribe():
 
     if removed:
         Config.write_sn_list('\n'.join(new_lines))
+        Config.schedule_wake.set()  # 通知主迴圈重新計算排程
         err_print(0, 'Dashboard', '通過排程頁面取消訂閱 SN=' + str(matched_sn), no_sn=True, status=2)
 
     return jsonify({'status': 200, 'removed': removed, 'sn': matched_sn})
@@ -443,8 +447,10 @@ def run():
         ssl_path = os.path.join(Config.get_working_dir(), 'Dashboard', 'sslkey')
         ssl_crt = os.path.join(ssl_path, 'server.crt')
         ssl_key = os.path.join(ssl_path, 'server.key')
-        # ssl_keys = (ssl_crt, ssl_key)
-        # app.run(use_reloader=False, port=port, host=host, ssl_context=ssl_keys)
+        if not os.path.exists(ssl_crt) or not os.path.exists(ssl_key):
+            err_print(0, 'Dashboard', 'SSL 憑證檔案不存在: ' + ssl_crt, status=1, no_sn=True)
+        else:
+            err_print(0, 'Dashboard', 'SSL 憑證載入: ' + ssl_crt, status=2, no_sn=True)
         server = WSGIServer((host, port), app, certfile=ssl_crt, keyfile=ssl_key, log=server_log)
 
         wrap_socket = server.wrap_socket
@@ -464,8 +470,8 @@ def run():
             try:
                 # print('my_wrap_socket_and_handle')
                 return wrap_socket_and_handle(client_socket, address)
-            except AttributeError:
-                # print('my_wrap_socket_and_handle AttributeError')
+            except (AttributeError, TypeError):
+                # wrap_socket 回傳 None 時會觸發 TypeError
                 pass
 
         server.wrap_socket = my_wrap_socket

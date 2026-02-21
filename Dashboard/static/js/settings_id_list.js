@@ -31,8 +31,6 @@ var id_list = [
 	'plex_token',
 	'plex_section',
 	'smart_schedule',
-	'schedule_window_before',
-	'schedule_window_after',
 	'schedule_fallback_frequency',
 	'schedule_delay'
 ]

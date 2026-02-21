@@ -134,6 +134,9 @@ html.light body { background-color: #f0f1f3; color: #111827; }
 /* Hover 狀態 */
 .light .hover\:bg-gray-600:hover { background-color: #c0c6cf; }
 .light .hover\:border-gray-500:hover { border-color: #6b7280; }
+/* hover:text-white 在淺色背景上不可見 — nav 內有深色底不需改，其餘改為深色 */
+.light .hover\:text-white:hover { color: #111827; }
+.light nav .hover\:text-white:hover { color: #ffffff; }
 
 /* 強調色文字（綠=狀態/成功、紅=錯誤） */
 .light .text-green-400 { color: #16a34a; }

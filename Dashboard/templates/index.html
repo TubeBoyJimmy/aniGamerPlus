@@ -71,11 +71,11 @@
 					<label class="toggle-switch"><input type="checkbox" id="classify_bangumi"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">鎖定解析度</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">鎖定解析度 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="僅下載指定解析度，找不到時跳過。關閉則自動降級至最接近的解析度"></i></label>
 					<label class="toggle-switch"><input type="checkbox" id="lock_resolution"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">分段下載模式</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">分段下載模式 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="啟用多執行緒分段下載，可加速大檔案下載速度"></i></label>
 					<label class="toggle-switch"><input type="checkbox" id="segment_download_mode"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
@@ -87,7 +87,7 @@
 					<label class="toggle-switch"><input type="checkbox" id="add_resolution_to_video_filename"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">模擬手機端解析</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">模擬手機端解析 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="使用行動版 API 解析影片，可能繞過部分限制或取得不同解析度"></i></label>
 					<label class="toggle-switch"><input type="checkbox" id="use_mobile_api"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
@@ -113,7 +113,7 @@
 				</div>
 				<!-- Number 類 -->
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新間隔</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新間隔 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="非排程模式下，每隔幾分鐘檢查一次所有訂閱。排程模式下不使用此設定"></i></label>
 					<input id="check_frequency" type="number" min="1" step="1" placeholder="分鐘"
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
@@ -123,7 +123,7 @@
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">最大並行分段數</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">最大並行分段數 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="單一影片同時下載的分段數，需開啟分段下載模式才有效"></i></label>
 					<input id="multi_downloading_segment" type="number" min="1" step="1" placeholder="正整數"
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
@@ -138,12 +138,12 @@
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載冷卻 (秒)</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">下載冷卻 (秒) <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="連續下載之間的等待秒數，避免請求過於頻繁被封鎖"></i></label>
 					<input id="download_cd" type="number" min="0" step="1" placeholder="正整數"
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">SN 解析冷卻 (秒)</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">SN 解析冷卻 (秒) <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="連續解析多個 SN 之間的等待秒數，避免被巴哈封鎖"></i></label>
 					<input id="parse_sn_cd" type="number" min="0" step="1" placeholder="正整數"
 						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				</div>
@@ -155,6 +155,58 @@
 					class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
 				<button type="button" onclick="getUA()"
 					class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-3 py-2 whitespace-nowrap transition-colors">取得當前 UA</button>
+			</div>
+		</section>
+
+		<!-- 排程設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">排程設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">智慧排程 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="根據巴哈排程表在播出時間精確觸發下載，取代固定週期輪詢"></i></label>
+					<label class="toggle-switch"><input type="checkbox" id="smart_schedule"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">未排程檢查頻率 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="無法匹配排程的番劇多久全量檢查一次（分鐘），預設 1440 = 每 24 小時"></i></label>
+					<input id="schedule_fallback_frequency" type="number" min="1" step="1" placeholder="分鐘"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">排程延遲補償 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="播出時間後延遲幾秒才觸發檢查（秒），避免新集尚未上架。建議 20-60"></i></label>
+					<input id="schedule_delay" type="number" min="0" step="1" placeholder="秒"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+			</div>
+		</section>
+
+		<!-- Plex 設定 -->
+		<section class="mb-8">
+			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">Plex 設定</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex 媒體目錄</label>
+					<input id="plex_bangumi_dir" type="text" placeholder="空值 = 使用下載目錄"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">自動刷新媒體庫 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="下載完成後自動通知 Plex 刷新媒體庫。需填寫下方 Plex URL、Token 及 Section ID"></i></label>
+					<label class="toggle-switch"><input type="checkbox" id="plex_refresh"><div class="toggle-slider"></div></label>
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex URL <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="Plex 伺服器位址，格式為 IP:Port（如 192.168.1.1:32400）。HTTPS 請加上 https:// 前綴"></i></label>
+					<input id="plex_url" type="text" placeholder="如 192.168.1.1:32400"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex Token <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="Plex 認證令牌（X-Plex-Token），可從 Plex Web 的 XML 頁面或瀏覽器開發者工具取得"></i></label>
+					<input id="plex_token" type="password" placeholder="X-Plex-Token" autocomplete="off"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
+				<div class="flex items-center gap-3">
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Section ID <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="Plex 媒體庫的 Section 編號，可從 {Plex URL}/library/sections 查詢"></i></label>
+					<input id="plex_section" type="text" placeholder="媒體庫 Section 編號"
+						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
+				</div>
 			</div>
 		</section>
 
@@ -196,68 +248,6 @@
 			</div>
 		</section>
 
-		<!-- Plex 設定 -->
-		<section class="mb-8">
-			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">Plex 設定</h2>
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex 媒體目錄</label>
-					<input id="plex_bangumi_dir" type="text" placeholder="空值 = 使用下載目錄"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">自動刷新媒體庫</label>
-					<label class="toggle-switch"><input type="checkbox" id="plex_refresh"><div class="toggle-slider"></div></label>
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex URL</label>
-					<input id="plex_url" type="text" placeholder="如 192.168.1.1:32400"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Plex Token</label>
-					<input id="plex_token" type="password" placeholder="X-Plex-Token" autocomplete="off"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">Section ID</label>
-					<input id="plex_section" type="text" placeholder="媒體庫 Section 編號"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-			</div>
-		</section>
-
-		<!-- 排程設定 -->
-		<section class="mb-8">
-			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">排程設定</h2>
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">智慧排程</label>
-					<label class="toggle-switch"><input type="checkbox" id="smart_schedule"><div class="toggle-slider"></div></label>
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新前檢查窗口</label>
-					<input id="schedule_window_before" type="number" min="0" step="1" placeholder="分鐘"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">更新後檢查窗口</label>
-					<input id="schedule_window_after" type="number" min="0" step="1" placeholder="分鐘"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">未排程檢查頻率</label>
-					<input id="schedule_fallback_frequency" type="number" min="1" step="1" placeholder="分鐘"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">排程延遲補償</label>
-					<input id="schedule_delay" type="number" min="0" step="1" placeholder="秒"
-						class="flex-1 bg-gray-800 text-gray-100 border border-gray-700 rounded-md px-3 py-2 text-sm outline-none hover:border-gray-500 focus:border-blue-500 transition-colors">
-				</div>
-			</div>
-		</section>
-
 		<!-- 其他 -->
 		<section class="mb-8">
 			<h2 class="text-lg font-bold text-gray-300 mb-4 border-b border-gray-800 pb-2">其他</h2>
@@ -267,11 +257,11 @@
 					<label class="toggle-switch"><input type="checkbox" id="check_latest_version"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取 sn_list</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取 sn_list <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="每次檢查更新前重新讀取 sn_list 檔案，即時反映手動修改"></i></label>
 					<label class="toggle-switch"><input type="checkbox" id="read_sn_list_when_checking_update"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
-					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取設定檔</label>
+					<label class="w-32 shrink-0 text-sm text-gray-400 text-right">每次讀取設定檔 <i class="fas fa-question-circle text-xs text-gray-600 cursor-help" title="每次檢查更新前重新讀取設定檔，即時反映手動修改"></i></label>
 					<label class="toggle-switch"><input type="checkbox" id="read_config_when_checking_update"><div class="toggle-slider"></div></label>
 				</div>
 				<div class="flex items-center gap-3">
@@ -289,9 +279,11 @@
 		<!-- 儲存/重載 -->
 		<div class="flex justify-center gap-4 mt-8">
 			<button type="button" onclick="readSettings()"
-				class="bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-md px-8 py-2.5 transition-colors">儲存</button>
+				class="bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-md px-8 py-2.5 transition-colors"
+				title="將目前表單設定寫入 config.json">儲存</button>
 			<button type="button" onclick="reloadSetting()"
-				class="bg-red-700 hover:bg-red-600 text-white font-medium rounded-md px-8 py-2.5 transition-colors">重新載入</button>
+				class="bg-red-700 hover:bg-red-600 text-white font-medium rounded-md px-8 py-2.5 transition-colors"
+				title="放棄目前修改，從 config.json 重新載入設定">重新載入</button>
 		</div>
 	</main>
 
@@ -472,9 +464,10 @@
 			</div>
 			<div class="p-5 overflow-y-auto">
 				<div class="flex items-center gap-3 mb-4">
-					<span class="text-sm text-gray-400">上次更新：<span id="schedule_last_fetch" class="text-gray-200">-</span></span>
-					<button type="button" onclick="loadSchedule()"
-						class="bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-md px-3 py-1 transition-colors">刷新排程</button>
+					<span class="text-sm text-gray-400">上次抓取：<span id="schedule_last_fetch" class="text-gray-200">-</span></span>
+					<button type="button" onclick="loadSchedule(true)" id="btn_force_fetch"
+						class="bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-md px-3 py-1 transition-colors inline-flex items-center gap-1"
+						title="忽略快取，從巴哈動畫瘋重新抓取最新排程表（季度換新時使用）"><i class="fas fa-sync-alt text-xs"></i> 從巴哈重新抓取</button>
 				</div>
 				<div id="schedule_error" class="hidden bg-yellow-900/30 border border-yellow-700 text-yellow-300 rounded-md px-4 py-2 text-sm mb-4"></div>
 

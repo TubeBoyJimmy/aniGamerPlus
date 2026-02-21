@@ -367,14 +367,17 @@ $(function() {
 		.on('input change', updateSubscribePreview);
 });
 
-function loadSchedule() {
+function loadSchedule(force) {
 	hideSubscribeForm(); // 先將表單移回錨點，避免被 tbody 清空時銷毀
 	$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>');
 	$('#schedule_error').addClass('hidden');
+	if (force) {
+		$('#btn_force_fetch').prop('disabled', true).html('<i class="fas fa-spinner fa-spin text-xs"></i> 抓取中...').removeClass('bg-blue-600 hover:bg-blue-500').addClass('bg-gray-600 cursor-not-allowed');
+	}
 
 	$.ajax({
 		type: 'get',
-		url: 'data/schedule',
+		url: 'data/schedule' + (force ? '?force=1' : ''),
 		dataType: 'json',
 		success: function(data) {
 			if (data.error) {
@@ -385,6 +388,11 @@ function loadSchedule() {
 		},
 		error: function() {
 			$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-red-400">載入失敗</td></tr>');
+		},
+		complete: function() {
+			if (force) {
+				$('#btn_force_fetch').prop('disabled', false).html('<i class="fas fa-sync-alt text-xs"></i> 從巴哈重新抓取').removeClass('bg-gray-600 cursor-not-allowed').addClass('bg-blue-600 hover:bg-blue-500');
+			}
 		}
 	});
 }
