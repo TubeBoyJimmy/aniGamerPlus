@@ -1,554 +1,450 @@
-<h1 align="center">aniGamerPlus</h1>
+<h1 align="center">aniGamerPlus — Enhanced Fork</h1>
 
 <p align="center">
- <img alt="GitHub" src="https://img.shields.io/github/license/miyouzi/aniGamerPlus.svg?style=flat-square">
- <img alt="GitHub release" src="https://img.shields.io/github/release/miyouzi/aniGamerPlus.svg?style=flat-square">
- <img alt="GitHub Release Date" src="https://img.shields.io/github/release-date/miyouzi/aniGamerPlus.svg?style=flat-square">
- <img alt="GitHub Releases" src="https://img.shields.io/github/downloads/miyouzi/aniGamerPlus/latest/total.svg?style=flat-square">
+  巴哈姆特動畫瘋自動下載工具 — 全新 Dashboard、智慧排程、Plex 整合
 </p>
 
-巴哈姆特動畫瘋自動下載工具, 可隨著番劇更新自動下載, 適合部署在全天開機的伺服器或NAS上.
+<p align="center">
+  <img alt="License" src="https://img.shields.io/github/license/TubeBoyJimmy/aniGamerPlus?style=flat-square">
+  <img alt="GitHub release" src="https://img.shields.io/github/release/TubeBoyJimmy/aniGamerPlus?style=flat-square">
+  <img alt="Based on" src="https://img.shields.io/badge/based%20on-miyouzi%2FaniGamerPlus-blue?style=flat-square">
+</p>
 
-同時支援命令行, 也適用於需要大批量下載的使用者, 如: 下載整部番劇. 命令行模式支援顯示下載進度, 但要求 **最大并發下載數** 設置為 **1** .
+> 本專案基於 [miyouzi/aniGamerPlus](https://github.com/miyouzi/aniGamerPlus) 開發，針對 **使用者介面**、**排程精度** 及 **Plex 媒體庫整合** 進行強化。原版功能完整保留，同時支援命令行與 Web Dashboard 操作。
 
-## **注意**:warning:
-
-**本專案依賴ffmpeg, 請事先將ffmpeg放入系統PATH或者本程序目錄下!**
-
-ffmpeg 需要另外下載, [**點擊這裡前往下載頁**](https://ffmpeg.org/download.html). 若不知道如何將 ffmpeg 放入 PATH 則直接將 **ffmpeg.exe** 放在和本程式同一個資料夾下即可.
-
-:warning: [**使用 Cookie 解析存在帳號被封鎖風險，不可解封，請三思后使用！**](https://github.com/miyouzi/aniGamerPlus/issues/207) :warning:
-
-## EXE 檔案運行(對於不熟悉Python的使用者)
-
-windows 使用者可以[**點擊這裡**](https://github.com/miyouzi/aniGamerPlus/releases/latest)下載exe文件使用.
-
-## 源碼運行
-
-Python 版本 3 以上
-
-下載源碼
-```bash
-git clone https://github.com/miyouzi/aniGamerPlus.git
-```
-
-**第一次使用前，進入原始碼所在資料夾，安裝依賴（重要）**
-```bash
-cd aniGamerPlus
-pip3 install -r requirements.txt
-```
-
-升級
-```bash
-git pull https://github.com/miyouzi/aniGamerPlus.git
-```
-
-使用
-```bash
-python3 aniGamerPlus.py
-```
-
-## Docker 運行
-
-### (可選) 建構自己的 Image
-
-下載原始碼
-
-```bash
-git clone https://github.com/miyouzi/aniGamerPlus.git
-```
-
-Build Image
-
-```bash
-docker build -t anigamerplus .
-```
-
-## 下載官方 Image
-
-目前官方 Image 放在 `tonypepe/anigamerplus`
-
-使用前需在本地先創建好 config.json，並綁定 config.json 和下載目錄至 Container 內。
-
-注意：
-
-1. confg.json 中的 Dashboard Host 請設定成 `0.0.0.0`，切勿設定 `127.0.0.1`.
-2. config.json 勿設定下載目錄 `bangumi_dir: ""`，請保持為空，以免目錄綁定失敗。
-3. 可綁定 cookie.txt 至 `/app/cookie.txt`
-
-使用：
-
-```bash
-docker run -td --name anigamerplus \
-    -v /path/to/config.json:/app/config.json \
-    -v /path/to/download:/app/bangumi \
-    -v /path/to/aniGamer.db:/app/aniGamer.db \
-    -p 5000:5000 \
-    tonypepe/anigamerplus
-```
-
-啟動後可至 `localhost:5000` 使用 [Dashboard](#dashboard)。
-
-## 鳴謝
-
-本專案m3u8获取模塊參考自 [BahamutAnimeDownloader](https://github.com/c0re100/BahamutAnimeDownloader)
-
-## 第三方拓展工具
- - [aniGamerPlus-swapHistorySnList](https://github.com/chumicat/aniGamerPlus-swapHistorySnList)
-    - 將資料庫中的番劇導出到sn_list, 可方便的與原來的sn_list相互切換, 適用於你想檢查過往番劇是否有更新時.
+---
 
 ## 目錄
 
-* [特性](#特性)
-* [注意](#注意warning)
-* [任務列表](#任務列表)
-* [配置説明](#配置説明)
-    * [主配置 config.json](#configjson)
-    * [使用代理](#使用代理)
-    * [下載模式説明](#下載模式説明)
-    * [使用 cookie](#cookietxt)
-    * [自動下載配置 sn_list.txt](#sn_listtxt)
-    * [任務狀態資料庫 aniGamer.db](#anigamerdb)
-* [命令行使用](#命令行使用)
-* [Web控制臺使用](#Dashboard)
+- [與原版差異](#與原版差異)
+- [新功能亮點](#新功能亮點)
+  - [全新 Dashboard UI](#全新-dashboard-ui)
+  - [智慧排程](#智慧排程-timer--time-table)
+  - [Plex 深度整合](#plex-深度整合)
+- [安裝與使用](#安裝與使用)
+- [配置說明](#配置說明)
+  - [config.json](#configjson)
+  - [sn_list.txt](#sn_listtxt)
+  - [cookie.txt](#cookietxt)
+- [命令行使用](#命令行使用)
+- [Dashboard](#dashboard)
+- [延伸參考](#延伸參考)
 
-## 特性
+---
 
- - 支援多綫程下載
- - 支援cookie，支援下載 1080P
- - 下載模式有僅下載最新一集, 下載最新上傳, 下載全部可選.
- - 自定義檢查更新間隔時間
- - 自定義番劇下載目錄
- - 自定義下載檔名前綴後綴及是否添加清晰度
- - 下載失敗, 下載過慢自動重啓任務
- - 支援使用FTP上傳至伺服器, 支援斷點續傳(適配Pure-Ftpd), 掉綫重傳, 支援 FTP over TLS
- - 檢查程序更新功能
- - 支援新番分類
- - v6.0 開始支援cookie自動刷新
- - v7.0 開始支援使用(鏈式)代理
- - v9.0 開始支援記錄日志
- - v9.0 開始自動下載支援自定義番劇名
- - v16 支援向酷Q推送下載完成訊息
- - v16 支援将影片 metadata 前置, 此功能會在綫觀看时更快播放
- - v20 上綫Web控制面板
- - v20.2 支援命令行下載時同時下載彈幕
+## 與原版差異
 
-## 任務列表
- - [x] 下載使用代理
- - [x] 使用ftp上傳至遠程伺服器
- - [x] Web控制臺(持續完善中)
+| | 原版 [miyouzi/aniGamerPlus](https://github.com/miyouzi/aniGamerPlus) | 本 Fork |
+|---|---|---|
+| **Dashboard UI** | Bootstrap + layui | Tailwind CSS 雙主題（深色 / 淺色） |
+| **排程機制** | 固定週期輪詢 | 雙模式：保留原有輪詢 + 新增智慧排程（秒級精確觸發） |
+| **Plex 命名** | 基礎 `plex_naming` 開關 | 進階 sn_list 語法：`{資料夾}` `<標題>` `(S季數-偏移)` |
+| **Plex 目錄** | 下載至 `bangumi_dir` | 新增獨立 `plex_bangumi_dir` 分離來源與媒體庫 |
+| **下載判定** | 僅檢查資料庫記錄 | 資料庫 + 檔案存在性雙重檢查（≥5MB 視為已存在） |
+| **任務監控** | WebSocket 即時推送 | HTTP Polling 浮動面板 |
+| **設定介面** | 基本表單 | 分類群組 + Tooltip 說明 + 排程 / Plex 專區 |
 
-## 配置説明
+---
+
+## 新功能亮點
+
+### 全新 Dashboard UI
+
+以 Tailwind CSS 重新設計的 Web 控制台，支援 **深色** 與 **淺色** 雙主題切換。
+
+- 巴哈姆特風格配色（cyan 青色系）
+- 底部抽屜式任務面板：下載進度常駐底部，不干擾主畫面操作
+- 響應式佈局，適配桌面與行動裝置
+- 鍵盤快捷鍵：`ESC` 關閉介面、`T` 切換任務面板
+- 設定欄位分類群組 + Tooltip 輔助說明
+
+| 深色主題 | 淺色主題 |
+|:---:|:---:|
+| ![深色主題](screenshot/MainPageBlack.jpg) | ![淺色主題](screenshot/MainPageWhite.jpg) |
+
+| 任務監控抽屜 | 手動任務 + 下載流程 |
+|:---:|:---:|
+| ![任務監控](screenshot/Task.jpg) | ![手動任務](screenshot/TaskOverlap.jpg) |
+
+### 智慧排程 (Timer + Time Table)
+
+從巴哈姆特動畫瘋首頁抓取每週排程表，以 **秒級精度** 在播出時間觸發下載，取代傳統的固定週期輪詢。
+
+**核心特點：**
+
+- 播出時間到達後精確觸發，可設定延遲補償避免搶在新集上架前
+- 未找到新集自動重試（10 分鐘 → 30 分鐘 → 60 分鐘 → 放棄）
+- 每小時自動刷新排程表，Dashboard 可手動強制重新抓取
+- 三層排程匹配：SN 直接匹配 → 資料庫標題比對 → sn_list 標題提示
+- 不在排程表中的番劇由 Fallback 機制定期檢查（預設每 24 小時）
+
+**請求量對比（以 10 部訂閱為例）：**
+
+| 模式 | 每日請求量 |
+|---|---|
+| 固定輪詢（每 5 分鐘） | ~2,880 次 |
+| 智慧排程（非播出日） | ~34 次 |
+
+> 詳細運作機制請參考 [SCHEDULE_COMPARISON.md](SCHEDULE_COMPARISON.md)
+
+![排程表 + 訂閱管理](screenshot/Sub.jpg)
+
+### Plex 深度整合
+
+原版的 `plex_naming` 開關能在檔名中加入 `[S01E01]` 格式，並自動從標題偵測「第X季」，但在實際使用上仍有幾個瓶頸：
+
+- **命名格式固定**：輸出如 `【動畫瘋】青之壬生浪 第二季[S02E01][1080P].mp4`，前綴、解析度標記、完整標題全部混在檔名中，不符合 [Plex 推薦的命名規則](https://support.plex.tv/articles/naming-and-organizing-your-tv-show-files/)
+- **季數偵測有限**：僅支援標題結尾的「第X季」中文格式（正則 `$` 錨定），無法手動覆寫。以下情況一律 fallback 為 S01：
+  - 英文格式：「Season 2」、「2nd Season」
+  - 以副標題區分季度：如《青春豬頭少年》系列每季標題都不同（「…兔女郎學姐」「…聖誕服裝女孩」），完全沒有季數標記
+- **標題無法自訂**：巴哈姆特的標題常帶有季數標記、`[年齡限制版]` 等附加文字，原版只能原樣帶入檔名
+- **集數偏移無解**：巴哈姆特的季度編排方式不統一，原版均無法正確映射集數：
+  - **同頁多季**：如[《我推的孩子》](https://ani.gamer.com.tw/animeVideo.php?sn=33312)三季全部放在同一頁面，集數從 1 連續遞增（S1: 1\~11、S2: 12\~24、S3: 25\~），Plex 需要每季重新從 E01 開始，但原版只能原樣輸出
+  - **分頁但不從第 1 集開始**：如[《公主殿下，「拷問」的時間到了 第二季》](https://ani.gamer.com.tw/animeVideo.php?sn=47110)雖然分季放在不同頁面，但第二季集數從第 13 集開始，原版同樣無法將其轉換為 S02E01
+
+本 Fork 透過 `sn_list.txt` 的擴充語法，讓使用者完全掌控 Plex 檔案結構：
+
+```
+# 基本用法 — 自動推導標題和季數
+46922 all {青之壬生浪 第二季}  # → 青之壬生浪 S02E01.mp4
+
+# 同頁多季 — 三季全在同一頁面, 追蹤第三季 (從巴哈第 25 集起)
+47536 latest {我推的孩子} (S3-24)  # → 我推的孩子 S03E01.mp4
+
+# 分頁不從 1 開始 — 第二季頁面集數從第 13 集起
+47487 all {公主殿下 拷問的時間到了 第二季} <拷問公主> (S2-12)  # → 拷問公主 S02E01.mp4
+```
+
+產出檔案結構：
+
+```
+D:\動畫\季番\
+├── 青之壬生浪 第二季\
+│   ├── 青之壬生浪 S02E01.mp4
+│   └── 青之壬生浪 S02E02.mp4
+├── 我推的孩子\
+│   ├── 我推的孩子 S03E01.mp4   ← 巴哈第 25 集
+│   └── 我推的孩子 S03E02.mp4   ← 巴哈第 26 集
+└── 公主殿下 拷問的時間到了 第二季\
+    ├── 拷問公主 S02E01.mp4     ← 巴哈第 13 集
+    └── 拷問公主 S02E02.mp4     ← 巴哈第 14 集
+```
+
+搭配原版已有的 `plex_refresh` 設定，下載完成後自動通知 Plex 伺服器刷新媒體庫（本 Fork 增強了 URL 處理容錯性）。
+
+> 完整語法說明見 [sn_list.txt 配置](#sn_listtxt)
+
+### 其他改進
+
+- **檔案存在性檢查**：自動下載時除了查資料庫，額外檢查目標檔案是否已存在（≥5MB 視為有效），避免重複下載；手動任務可跳過此檢查
+- **排程表瀏覽**：Dashboard 內建每週排程表，支援一鍵訂閱 / 取消訂閱
+- **從巴哈重新抓取**：排程表每小時自動刷新，季度換新時亦可手動強制重新抓取
+- **HTTP 存取日誌控制**：可開關 Dashboard 的 HTTP access log
+- **正體中文統一**：所有日誌與介面文字統一使用正體中文
+
+---
+
+## 安裝與使用
+
+### :warning: 注意
+
+**本專案依賴 ffmpeg，請事先將 ffmpeg 放入系統 PATH 或程式目錄下！**
+
+[下載 ffmpeg](https://ffmpeg.org/download.html) — 不知道如何放入 PATH 的話，直接將 `ffmpeg.exe` 放在和本程式同一資料夾下即可。
+
+:warning: [**使用 Cookie 解析存在帳號被封鎖風險，不可解封，請三思後使用！**](https://github.com/miyouzi/aniGamerPlus/issues/207) :warning:
+
+### EXE 執行
+
+前往 [Releases](https://github.com/TubeBoyJimmy/aniGamerPlus/releases/latest) 下載最新 exe 檔案。
+
+`Dashboard/` 資料夾需與 exe 放在同一目錄下（不打包進 exe）。
+
+### 原始碼執行
+
+Python 3 以上。
+
+```bash
+git clone https://github.com/TubeBoyJimmy/aniGamerPlus.git
+cd aniGamerPlus
+pip3 install -r requirements.txt
+python3 aniGamerPlus.py
+```
+
+---
+
+## 配置說明
 
 ### config.json
 
-**config-sample.json**为范例配置文件, 可以将其修改后改名为**config.json**.
+首次執行時自動產生，或可複製 `config-sample.json` 修改後更名。
 
-若不存在**config.json**, 则程序在运行时将会使用默认配置创建.
+以下列出主要設定項目（依 Dashboard 分類群組排列），🆕 標記為本 Fork 新增。
 
-```jsonc
-{
-    "bangumi_dir": "",  // 下載存放目錄, 動畫將會以番劇為單位分資料夾存放
-    "temp_dir": "",  // 臨時目錄位置, v9.0 開始下載中文件將會放在這裏, 完成後再轉移至番劇目錄, 留空默認在程序所在目錄的 temp 資料夾下
-    "classify_bangumi": true,  // 控制是否建立番劇資料夾
-    "classify_season": false,  // 控制是否建立季度子目錄
-    "check_frequency": 5,  // 檢查更新頻率, 單位為分鐘
-    "download_cd": 5,  // # 下載冷卻時間(秒)
-    "parse_sn_cd": 3,  // sn 页面(即播放界面)解析冷却时间(秒)
-    "download_resolution": "1080",  // 下載選取清晰度, 若該清晰度不存在將會選取最近可用清晰度, 可選 360 480 540 576 720 1080
-    "lock_resolution": false,  // 鎖定清晰度, 如果指定清晰度不存在, 則放棄下載
-    "only_use_vip": false,  // 锁定 VIP 账号下载
-    "default_download_mode": "latest",  // 默認下載模式, 另一可選參數為 all 和 largest-sn. latest 為僅下載最後一集, all 下載番劇全部劇集, largest-sn 下載最近上傳的一集
-    "use_copyfile_method": false,  // 轉移影片至番劇資料夾時使用複製方法, 適用於保存到 rclone 掛載盤的情況
-    "multi-thread": 1,  // 最大并發下載數, 最高為 5, 超過將重置為 5
-    "multi_upload": 3,  // 最大并發上傳數
-    "segment_download_mode": true,  // 分段下載模式, 速度更快, 容錯率更高
-    "segment_max_retry": 8,  // 在分段下載模式時有效, 每個分段最大重試次數, -1 為無限重試
-    "multi_downloading_segment": 3,  // 每個影片最大并發下載分段數, 僅在 "segment_download_mode" 為 true 時有效, 最高為 5, 超過將重置為 5
-    "add_bangumi_name_to_video_filename": true,  // 如果為 false, 則只有劇集名, 若劇集名為個位數字, 則補零
-    "add_resolution_to_video_filename": true,  // 是否在影片檔名中添加清晰度, 格式舉例: [1080P]
-    "customized_video_filename_prefix": "【動畫瘋】",  // 影片檔名前綴
-    "customized_bangumi_name_suffix": "",  // 影片檔名中番劇名的后缀, 在劇集名之前
-    "customized_video_filename_suffix": "",  // 影片檔名後綴
-    "video_filename_extension": "mp4",  // 影片檔副檔名, ts, mov, mkv 經過測試可以使用, 但 flv 不支援, 非 mp4 副檔名 faststart_movflags 將强制為 false
-    "zerofill": 1,  // 劇集名補零, 填寫補足位數, 例: 填寫 2 劇集名為 01, 填寫 3 劇集名為 001
-    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.96 Safari/537.36",  //  請求UA, 需要和獲取cookie的瀏覽器相同
-    "use_proxy": false,  // 代理開關
-    "proxy": {"http://user:passwd@example.com:1000"},  // 代理配置
-    "upload_to_server": false,  // 上傳功能開關
-    "ftp": {  // FTP配置
-        "server": "",  // FTP Server IP
-        "port": "",  // 端口
-        "user": "",  // 使用者名
-        "pwd": "",  // 密碼
-        "tls": true,  // 是否是 FTP over TLS
-        "cwd": "",  // 登陸後首先進入的目錄
-        "show_error_detail": false,  // 是否顯示細節錯誤信息
-        "max_retry_num": 15  // 最大重傳數, 支援續傳
-    },
-    "user_command": "shutdown -s -t 60"  // 命令行模式使用 -u 參數有效, 在命令行模式下完成所有任務后執行的命令
-    "coolq_notify": false,  // 是否向酷Q推送下載完成訊息
-    "coolq_settings": {
-        "msg_argument_name": "message",
-        "message_suffix": "追加的資訊",
-        "query": [
-            "http://127.0.0.1:5700/send_group_msg?access_token=abc&group_id=12345678",
-            "http://127.0.0.1:5700/send_group_msg?access_token=abc&group_id=87654321"
-        ]
-    },
-    "plex_naming": false, // 適配PLEX命名規則
-    "faststart_movflags": false,  // 是否將影片 metadata 前置, 啓用此功能時在綫觀看會更快播放, 僅在 video_filename_extension 為 mp4 時有效
-    "audio_language": false,  // 是否添加音軌標簽
-    "use_mobile_api": false,  // 使用移動端API進行影片解析
-    "danmu": false, // 是否下載彈幕(已包含動畫瘋內建的關鍵字過濾)
-    "danmu_ban_words": [], // 額外過濾彈幕關鍵字(支援python的正規表示式、英文不區分大小寫)
-    "check_latest_version": true,  // 是否檢查更新
-    "read_sn_list_when_checking_update": true,  // 是否在檢查更新時讀取sn_list.txt, 開啓後對sn_list.txt的更改將會在下次檢查更新時生效而不用重啓程序
-    "read_config_when_checking_update": true,  // 是否在檢查更新時讀取配置文件, 開啓後對配置文件的更改將會在下次檢查時更新生效而不用重啓程序
-    "ads_time": 25,  // 非VIP廣告等待時間, 如果等待時間不足, 程式會自行追加時間 (最大20秒)
-    "mobile_ads_time": 25  // 使用移動端API解析的廣告等待時間
-    "use_dashboard": true  // Web 控制台開關
-    "dashboard": {  // Web控制面板配置
-        "host": "127.0.0.1",  // 監聽地址, 如果需要允許外部訪問, 請填寫 "0.0.0.0"
-        "port": 5000,  // 監聽端口
-        "SSL": false,  // 是否開啓SSL, 證書保存在 Dashboard\sslkey, 如果有需要可以自行替換證書
-        "BasicAuth": false,  // 是否使用 BasicAuth 進行認證, 注意, 用戶密碼是明文傳輸的, 如有需要建議同時啓用 SSL
-        "username": "admin",  // BasicAuth 用戶名
-        "password": "admin"  // BasicAuth 密碼
-    },
-    "save_logs": true,  // 是否記錄日志, 一天一個日志
-    "quantity_of_logs": 7,  // 日志保留數量, 正整數值, 必須大於等於 1, 默認為 7
-    "config_version": 14.0,  // 配置文件版本
-    "database_version": 2.0  // 資料庫版本
-}
-```
+#### 路徑設定
 
-模式僅支援在 **latest**, **all**, **largest-sn** 三個中選一個, 錯詞及其他詞將會重置為**latest**模式
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| `bangumi_dir` | string | `""` | 下載存放目錄，以番劇為單位建立子資料夾 |
+| `temp_dir` | string | `""` | 臨時目錄，留空使用程式目錄下 `temp/` |
+| `classify_bangumi` | bool | `true` | 以番劇名建立子資料夾 |
 
-### 使用代理
-aniGamerPlus本身支援使用單個```http```或```https```或```socks5```(v12開始支援)代理.
+#### 下載設定
 
-**你可以在 Web 控制臺設置代理, 如下圖所示:**
-![](screenshot/Dashboard_proxy.png)
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| `download_resolution` | string | `"1080"` | 下載解析度，可選 360 / 480 / 540 / 576 / 720 / 1080 |
+| `lock_resolution` | bool | `false` | 鎖定解析度，指定解析度不存在時放棄下載 |
+| `default_download_mode` | string | `"latest"` | 預設下載模式：`latest` / `all` / `largest-sn` |
+| `segment_download_mode` | bool | `true` | 分段下載模式（速度更快、容錯率更高） |
+| `multi-thread` | int | `1` | 最大並行下載數（上限 5） |
+| `multi_downloading_segment` | int | `2` | 每部影片並行下載分段數（上限 5） |
+| `download_cd` | int | `60` | 下載冷卻時間（秒） |
+| `parse_sn_cd` | int | `5` | SN 頁面解析冷卻時間（秒） |
+| `add_bangumi_name_to_video_filename` | bool | `true` | 檔名包含番劇名 |
+| `add_resolution_to_video_filename` | bool | `true` | 檔名包含解析度標記 `[1080P]` |
+| `customized_video_filename_prefix` | string | `"【動畫瘋】"` | 檔名前綴 |
+| `customized_video_filename_suffix` | string | `""` | 檔名後綴 |
+| `use_mobile_api` | bool | `false` | 使用行動端 API 解析影片 |
+| `danmu` | bool | `false` | 下載彈幕（.ass 格式） |
+| `check_frequency` | int | `5` | 固定輪詢間隔（分鐘），僅在未啟用智慧排程時使用 |
 
-**或者手動編輯`config.json`檔案的`proxy`字段, 請按下方格式填入:**
+#### 排程設定 🆕
 
-無密碼驗證的代理使用以下格式:
-```
-http://example.com:1000
-```
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| `smart_schedule` | bool | `false` | 啟用智慧排程（Timer + Time Table） |
+| `schedule_delay` | int | `0` | 觸發延遲補償（秒），建議 20~60 避免新集尚未上架 |
+| `schedule_fallback_frequency` | int | `1440` | 未排程番劇的全量檢查間隔（分鐘），預設 24 小時 |
 
-有密碼驗證的代理使用以下格式:
-```
-http://user:passwd@example.com:1000
-```
+#### Plex 設定
 
-使用socks5代理支援遠端DNS, 配置時使用```socks5h```代替```socks5```, 如:
-```
-socks5h://127.0.0.1:1483
-```
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| 🆕 `plex_bangumi_dir` | string | `""` | Plex 媒體目標資料夾，留空使用 `bangumi_dir` |
+| `plex_refresh` | bool | `false` | 下載完成後自動通知 Plex 刷新媒體庫 |
+| `plex_url` | string | `""` | Plex 伺服器 URL（例：`https://192.168.1.100:32400`） |
+| `plex_token` | string | `""` | Plex 認證 Token |
+| `plex_section` | string | `""` | Plex 媒體庫 Section ID |
 
-**注意: ```read_config_when_checking_update``` 配置對代理配置無效**
+#### 代理設定
 
-**使用代理建議使用分段下載模式**
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| `use_proxy` | bool | `false` | 啟用代理 |
+| `proxy` | string | `""` | 代理地址，格式見[延伸參考](#使用代理) |
 
-**如果代理網路不穩定, 建議```multi-thread```配置為```1```**
+#### 其他設定
 
-### 下載模式説明
+| 設定 | 類型 | 預設 | 說明 |
+|---|---|---|---|
+| `ua` | string | Chrome UA | 請求 UA，需與取得 cookie 的瀏覽器一致 |
+| `check_latest_version` | bool | `true` | 啟動時檢查程式更新 |
+| `read_sn_list_when_checking_update` | bool | `true` | 每次檢查更新時重讀 sn_list.txt |
+| `read_config_when_checking_update` | bool | `true` | 每次檢查更新時重讀 config.json |
+| `save_logs` | bool | `true` | 記錄日誌（一天一個檔案） |
+| `quantity_of_logs` | int | `7` | 日誌保留天數 |
 
-v8.0 影片下載模式新增分段下載, 其工作流程: 由 aniGamerPlus 讀取 m3u8 文件, 下載 key 及所有影片分段至臨時資料夾, 再使用 ffmpeg 解密合并.
+> 其他進階設定（FTP 上傳、推送通知、影片封裝格式等）請參考[延伸參考](#其他原版功能)或[原版 config.json 說明](https://github.com/miyouzi/aniGamerPlus#configjson)。
 
-**分段下載模式特點:**
-
-- 分段下載模式速度更快
-- 個別分段下載失敗會自動重試, 最多重試8次
-- aniGamerPlus本身消耗的記憶體將略高於舊下載模式
-- aniGamerPlus本身性能消耗將會略高
-- 短時間内(解密合并階段)將會占用2倍影片大小的磁盤空間
-- 命令行模式下下載單個視頻時, 實時顯示已下載分段數占總分段數百分比
-
-舊下載模式, 即 ffmpeg 下載模式的工作流程: 直接將 m3u8 文件交給 ffmpeg, 下載解密合并全由 ffmpeg 完成.
-
-**ffmpeg下載模式特點:**
-
-- 一個分段下載失敗即判斷爲下載失敗
-- 在下載過程中可能出現 ffmpeg 卡死的情況
-- 不會生成臨時資料夾
-- 命令行模式下下載單個視頻時, 實時顯示已下載的大小
-
-
-除非你通往動畫瘋的網路足夠穩, 否則建議使用分段下載模式, 配置 ```segment_download_mode``` 為 ```true``` 開啓分段下載模式
-
-儅開啓分段下載模式時, 配置 ```multi_downloading_segment``` 將有效, 這個值指定一個影片同時最多下載幾個分段, 一般設定在```3```左右速度就足夠快了
-
-### cookie.txt
-
-1.  使用者cookie文件, 將瀏覽器的cookie字段複製, 以**cookie.txt**為檔名保存在程序目錄下
-2.  將獲取cookie的瀏覽器UA, 写入```config.json```的```ua```項目 （重要:warning:）
-
-**v6.0版本開始支援自動刷新cookie, 爲了不與正常使用的cookie衝突, 請從使用瀏覽器的無痕模式取得僅供aniGamerPlus使用的cookie**
-
-取得cookie后, 登陸狀態會顯示在 **https://home.gamer.com.tw/login_devices.php** , 你可以從這裏點擊```退出```來失效你的cookie, 其顯示的信息來自與你取得cookie的瀏覽器(UA)
-
-使用cookie后所抓取的影片記錄會記錄在你的[觀看紀錄](https://ani.gamer.com.tw/viewList.php)中
-
-:warning: **登陸時請勾選"保持登入狀態"**
-
-#### 使用Chrome舉例如何獲取 Cookie:
-
- - 開啓Chrome的**無痕模式**, 登陸動畫瘋, 記得勾選**保持登入狀態**
-
- - 按 F12 調出開發者工具, 前往動畫瘋首頁, 切換到 Network 標簽, 在下方選中 "ani.gamer.com.tw" 在右側即可看到 Cookie, 如圖:
-    ![](screenshot/WhereIsCookie.png)
-
- - 在程序所在目錄新建一個名爲**cookie.txt**的文本文件, 打開將上面的Cookie複製貼上保存即可
-    ![](screenshot/CookiesFormat.png)
-
-#### （推薦自動獲取UA）通過獲取Web控制臺如何獲取 UA:
-
- - 開啓 Web 控制臺功能（默認開啓），打開控制臺，找到`取得當前UA`按鈕，點擊後會自動填入當前瀏覽器UA，然後保存即可
-    ![](screenshot/set_ua_via_dashboard.png)
-
-#### （手動方式獲取UA）使用Chrome舉例如何獲取 UA:
-
- - 訪問 **https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes** 即可查看該瀏覽器 UA
- - 如果此網址失效，以下為可查詢UA的備用網址：
-    - https://www.whatsmyua.info/
-    - http://service.spiritsoft.cn/ua.html
-    ![](screenshot/how_to_get_my_ua.png)
-
- - 將 UA 複製粘貼到```config.json```的```ua```項目
-    ![](screenshot/how_to_use_my_ua.png)
+---
 
 ### sn_list.txt
 
-需要自動下載的番劇列表,一個番劇中選任一sn填入即可
+自動下載的番劇列表，一個番劇中任選一個 sn 填入即可。
 
-可以對個別番劇配置下載模式, 未配置下載模式將會使用**config.json**定義的默認下載模式
+#### 基本格式（與原版相容）
 
-支援注釋 **#** 後面的所有字符程序均不會讀取, 可以標記番劇名
-
-模式僅支援在 **latest**, **all**, **largest-sn** 三個中選一個, 錯詞及其他詞將會重置為**config.json**中定義的默認下載模式
-
-格式:
 ```
-sn碼 下載模式(可空) #注釋(可空)
+sn碼 [下載模式] [<重命名>] [# 注釋]
 ```
 
-範例:
 ```
-10147 all # 前進吧！登山少女 第三季 [1]
-11285 # 關於我轉生變成史萊姆這檔事
-11390 all #笑容的代價 01
-11388 # BanG Dream！第二季
-11317 latest # SSSS.GRIDMAN
+10147 all                    # 前進吧！登山少女（下載全部）
+11285 <史萊姆>               # 重命名資料夾為「史萊姆」
+11317 latest                 # 僅下載最新一集
+11388                        # 使用預設下載模式
 ```
 
-自v6.0開始, 新增對番劇進行分類功能, 在一排番劇列表的上方 **@** 開頭後面的字符將會作爲番劇的分類名, 番劇會歸類在此分類名的資料夾下
+- 下載模式可選 `latest`、`all`、`largest-sn`，省略時使用 config.json 設定
+- `<重命名>` 將作為番劇資料夾名稱
+- `#` 後方為注釋，程式不會讀取
 
-若單獨 **@** 表示不分類
+#### 分類標籤
 
-範例:
+以 `@` 開頭定義分類資料夾，單獨 `@` 表示不分類：
+
 ```
-@2019一月番
-11433 # ENDRO！
-11392 # 笨拙之極的上野
-@2019十月番
-11354 latest # 刀劍神域 Alicization
+@2024秋季番
+46922 all    # 青之壬生浪 第二季
+47063 all    # 和機器人啪啪啪
 @
-11468 # 動物朋友
-```
-上面表示將會把**ENDRO**和**上野**放在**2019一月番**資料夾裏, 將**刀劍**放在**2019十月番**資料夾裏, **動物朋友** 不分類, 直接放在番劇目錄下
-
-自 v9.0 開始, 支援重命名番劇, 在注釋之前, 模式之後, 用 ```<``` 與 ```>``` 將自定義的番劇名框起來, 下載時將會使用這個名字作爲番劇目錄名
-
-PS: 連續多個空格將會被替換爲單個空格, 和模式需要間隔一個空格
-
-範例:
-```
-11415 <魔法少女特殊战明日香> # 魔法少女特殊戰明日香
-11433 <えんどろ～！> # ENDRO！
-11354 latest <刀剑神域3> # 刀劍神域 Alicization
-11398 # 粉彩回憶
+11468 all    # 不分類，直接放在番劇目錄下
 ```
 
-### aniGamer.db
+#### 🆕 Plex 命名語法
 
-sqlite3資料庫, 可以使用 [SQLite Expert](http://www.sqliteexpert.com/) 等工具打開編輯
+在 sn 行中加入 `{資料夾名}` 即可啟用 Plex 模式，可選搭配 `<標題>` 和 `(S季數)`：
 
-記錄視頻下載狀態等相關信息, 一般無需改動
+```
+sn碼 [模式] {資料夾名} [<標題>] [(S季數[-集數偏移])] [# 注釋]
+```
 
-欄位設計:
-- ```sn``` sn值 (PK)
-- ```title``` 完整標題
-- ```anime_name``` 番劇名
-- ```episode``` 劇集名, 一般爲數字, 也可能是```特別篇``` ```電影``` 等
-- ```status``` 下載狀態, ```0``` 為未成功下載, ```1``` 為已成功下載
-- ```remote_status``` 上傳状态, ```0``` 為未成功上傳, ```1``` 為已成功上傳
-- ```resolution``` 下載的影片檔解析度
-- ```file_size``` 影片檔大小, 整數, 單位MB
-- ```local_file_path``` 影片檔路徑
-- ```CreatedTime``` 資料創建時間
+| 語法 | 必要性 | 說明 |
+|---|---|---|
+| `{資料夾名}` | **必填**（啟用 Plex 的前提） | Plex 媒體資料夾名稱 |
+| `<標題>` | 選填 | Plex 檔名標題，省略時自動從資料夾名去除季數標記推導 |
+| `(S季數)` | 選填 | 季數編號，省略時自動從資料夾名偵測 |
+| `(S季數-偏移)` | 選填 | 集數偏移，用於跨季分割（cour split） |
 
-截图:
-![](screenshot/db.png)
+**範例：**
 
+```
+# 自動推導標題和季數 — 最常用的寫法
+46922 all {青之壬生浪 第二季}
+# <標題> 自動推導為「青之壬生浪」（去除「第二季」）
+# 季數自動偵測為 S02（從「第二季」）
+# 產出: 青之壬生浪 第二季/青之壬生浪 S02E01.mp4
+
+# 完整指定所有參數
+47063 all {和機器人啪啪啪 第一季} <和機器人> (S1)
+# 產出: 和機器人啪啪啪 第一季/和機器人 S01E01.mp4
+
+# 同頁多季 — 我推的孩子三季全在同一頁面, 追蹤第三季
+47536 latest {我推的孩子} (S3-24)
+# 巴哈第 25 集 → 我推的孩子 S03E01.mp4
+# 巴哈第 26 集 → 我推的孩子 S03E02.mp4
+
+# 分頁但不從第 1 集開始 — 公主殿下第二季從巴哈第 13 集起
+47487 all {公主殿下 拷問的時間到了 第二季} <拷問公主> (S2-12)
+# 巴哈第 13 集 → 拷問公主 S02E01.mp4
+# 巴哈第 14 集 → 拷問公主 S02E02.mp4
+```
+
+**自動推導規則：**
+
+- **標題推導**：從 `{資料夾名}` 去除「第X季」或「Season N」等季數標記
+  - `{青之壬生浪 第二季}` → 標題 `青之壬生浪`
+  - `{Anime Season 3}` → 標題 `Anime`
+- **季數偵測**：從 `{資料夾名}` 偵測中文或英文季數
+  - `第一季` → S01、`第三季` → S03、`Season 2` → S02
+  - 偵測不到時預設 S01
+
+---
+
+### cookie.txt
+
+將瀏覽器的巴哈姆特 cookie 複製，以 `cookie.txt` 為檔名儲存在程式目錄下。`config.json` 的 `ua` 需與取得 cookie 的瀏覽器一致。
+
+> Cookie 取得步驟請參考[延伸參考](#cookie-取得教學)或[原版教學](https://github.com/miyouzi/aniGamerPlus#cookietxt)（附截圖）。
+
+---
 
 ## 命令行使用
 
-支援命令行使用, 文件默認將保存在**config.json**中指定的目錄下
+本 Fork 完整保留原版命令行功能。EXE 使用者將 `python3 aniGamerPlus.py` 替換為 `aniGamerPlus` 即可。
 
-**配置文件中的代理配置同樣適用於命令行模式!**
+```bash
+# 下載單集
+python3 aniGamerPlus.py -s 12345
 
-**除了使用 list 模式的情況, 命令行模式將不會和資料庫進行交互, 將會無視數據庫中下載狀態標記强制下載**
+# 下載全部劇集
+python3 aniGamerPlus.py -s 12345 -m all
 
-**EXE 檔的 aniGamerPlus.exe 也是支援命令行使用的, 將下方演示的 ```python3 aniGamerPlus.py``` 換成 ```aniGamerPlus``` 就行**
+# 下載指定範圍 (第 5~8 集 + 第 12 集)
+python3 aniGamerPlus.py -s 12345 -m range -e 5-8,12
 
-參數:
-```
->python3 aniGamerPlus.py -h
-當前aniGamerPlus版本: v24.4
-usage: aniGamerPlus.py [-h] [--sn SN] [--resolution {360,480,540,576,720,1080}] [--download_mode {single,latest,largest-sn,multi,all,range,list,sn-list,sn-range,db}]
-                       [--thread_limit THREAD_LIMIT] [--current_path] [--episodes EPISODES] [--no_classify] [--user_command] [--information_only] [--danmu] [--my_anime]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --sn SN, -s SN        視頻sn碼(數字)
-  --resolution {360,480,540,576,720,1080}, -r {360,480,540,576,720,1080}
-                        指定下載清晰度(數字)
-  --download_mode {single,latest,largest-sn,multi,all,range,list,sn-list,sn-range,db}, -m {single,latest,largest-sn,multi,all,range,list,sn-list,sn-range,db}
-                        下載模式
-  --thread_limit THREAD_LIMIT, -t THREAD_LIMIT
-                        最高并發下載數(數字)
-  --current_path, -c    下載到當前工作目錄
-  --episodes EPISODES, -e EPISODES
-                        僅下載指定劇集
-  --no_classify, -n     不建立番劇資料夾
-  --user_command, -u    所有下載完成后執行用戶命令
-  --information_only, -i
-                        僅查詢資訊，可搭配 -d 更新彈幕
-  --danmu, -d           以 .ass 下載彈幕
-  --my_anime            匯出「我的動畫」至my_anime.txt
+# 指定解析度
+python3 aniGamerPlus.py -s 12345 -r 720
 ```
 
- - **-s** 接要下載視頻的sn碼,不可空
+> 完整參數說明請參考[原版命令行文件](https://github.com/miyouzi/aniGamerPlus#命令行使用)。
 
- - **-r** 接要下載的清晰度, 可空, 空則讀取**config.json**中的定義, 不存在則選取最近可用清晰度
-
- - **-m** 接下載模式, 可空, 空則下載傳入sn碼的視頻
-
-    - **single** 下載此 sn 單集(默認)
-
-    - **multi** 下載多個sn, 啓用此模式時, 通過```-e```傳入多個sn, sn之間使用英文```,```分割
-
-    - **all** 下載此番劇所有劇集
-
-    - **latest** 下載此番劇最後一集(即網頁上顯示排最後的一集)
-
-    - **largest-sn** 下載此番劇最近上傳的一集(即sn最大的一集)
-
-    - **range** 下載此番指定的劇集
-
-    - **list** 讀取 sn_list 中的内容進行下載, 並會將任務狀態記錄在資料庫中, 重啓自動下載未完成的集數, 該功能用於單次大量下載. **此模式無法通過```-r```參數指定解析度**
-
-    - **sn-list** 讀取 sn_list 中的指定sn進行下載, sn後面的模式設定會被忽略，僅下載單個sn, 並會將任務狀態記錄在資料庫中. **此模式無法通過```-r```參數指定解析度**
-
-    - **sn-range** 下載此番据指定sn範圍的劇集, 對於劇集名稱不是正整數的番劇, 可以用此模式
-    
-    - **db** 更新資料庫中所有動畫的彈幕
-
- - **-t** 接最大并發下載數, 可空, 空則讀取**config.json**中的定義
-
- - **-c** 開關, 指定時將會下載到當前工作路徑下
-
- - **-n** 不建立番劇資料夾
-
- - **-i** 僅顯示影片資訊, 當爲```list```模式時, 會獲取 sn_list 中的單個 sn 的資訊.
-
- - **-u** 所有任務完成后執行使用者命令 (配置在```config.json```的```user_command```中),  用於實現下載完成后關機等操作
-
- - **-d** 下載 `.ass` 彈幕，推薦使用 XySubFilter 進行字幕渲染
-
- - **-e**
-    - **在 ```range``` 模式下, 下載此番劇指定劇集, 支援範圍輸入, 支援多個不連續聚集下載, 僅支援整數命名的劇集**
-
-    - **在 ```multi``` 模式下, 用於指定多個sn**
-
-    - ```-e``` 參數優先于 ```-m``` 參數, 若使用 ```-e``` 參數時不指定模式, 則默認為 ```range``` 模式
-
-    - 若使用 ```-m range``` 則必須使用 ```-e``` 指定需要下載的劇集
-
-    - 在 ```range``` 模式下, 若指定了不存在的劇集會警告並跳過, 僅下載存在的劇集
-
-    - 指定不連續劇集或sn時, 請用英文逗號```,```分隔, 中間無空格
-
-    - 在 ```range``` 模式下, 指定連續劇集格式: 起始劇集-終止劇集. 舉例想下載第5到9集, 則格式為 5-9
-
-    - 在 ```sn-range``` 模式下, 格式同 ```range``` 模式, 不過將劇集改成 sn 碼
-
-    - 將會按sn順序下載
-
-    - 舉例:
-
-        - 想下載某番劇第1,2,3集
-        ```python3 aniGamerPlus.py -s 10218 -e 1,2,3```
-
-        - 想下載某番劇第5到8集
-        ```python3 aniGamerPlus.py -s 10218 -e 5-8```
-
-        - 想下載某番劇第2集, 第5到8集, 第12集
-        ```python3 aniGamerPlus.py -s 10218 -e 2,5-8,12```
-
-        - 想下載某番劇sn範圍 14440 到 14459 的劇集, 外加 sn 為 14670 和 14746 的兩集
-        ```python3 aniGamerPlus.py -s 14440 -m sn-range -e 14670,14746,14440-14459```
-
-        - 想下載sn為 14479,14518,14511 的動畫
-        ```aniGamerPlus.py -m multi -e 14479,14518,14511```
-
-    - 截圖:
-
-        ![](screenshot/cui_range_mode.png)
-
-        ![](screenshot/cui_range_mode_err.png)
-
-        在Android中使用 (使用Termux)
-
-        ![](screenshot/cui_on_android.jpg)
+---
 
 ## Dashboard
 
-在 v20 版本首次啓用了 Web 控制臺, 相關配置在 ```config.json``` 的 ```dashboard``` 項目中.
+Web 控制台預設啟用，預設 port 5000，支援 SSL 與 BasicAuth。
 
-Web 控制臺默認啓用, 默認端口 5000, 支援 SSL (https), 證書保存在 Dashboard\sslkey, 如果有需要可以自行替換證書.
-
-如果想開放外部訪問, 可以將 ```dashboard``` 配置中的 ```host``` 設置成 ```0.0.0.0```
-
-支援使用 BasicAuth 進行認證, **注意**:warning: **用戶密碼是明文傳輸的, 如有需要建議同時啓用 SSL**.
-
-支援在 Web 控制臺下達手動任務(即命令行模式啓動的任務), 爲了控制臺輸出工整, 控制臺不會顯示下載進度.
-
-**目前控制臺僅能配置部分主要配置, 另外Web任務進度顯示等其他擴展功能正在銳意製作中……**
-
-相關配置:
-```
-"use_dashboard": true  # Web 控制台開關
-# Web控制面板配置
+```jsonc
 "dashboard": {
-    "host": "127.0.0.1",  # 監聽地址, 如果需要允許外部訪問, 請填寫 "0.0.0.0"
-    "port": 5000,  # 監聽端口
-    "SSL": false,  # 是否開啓SSL
-    "BasicAuth": false,  # 是否使用 BasicAuth 進行認證
-    "username": "admin",  # BasicAuth 用戶名
-    "password": "admin"  # BasicAuth 密碼
+    "host": "127.0.0.1",  // 外部存取請改為 "0.0.0.0"
+    "port": 5000,
+    "SSL": false,          // 證書位於 Dashboard/sslkey/
+    "BasicAuth": false,     // 注意：密碼為明文傳輸，建議搭配 SSL
+    "username": "admin",
+    "password": "admin"
 }
 ```
 
-Web控制臺截圖:
- - 主界面:
-    ![](screenshot/Dashboard_UI.png)
- - 手動任務:
-    ![](screenshot/Dashboard_manualTask.png)
- - 在綫編輯 sn_list
-    ![](screenshot/Dashboard_sn_list.png)
- - 控制臺輸出:
-    ![](screenshot/Dashboard_Console.png)
+> **SSL 安全提示**：repo 內附的 `Dashboard/sslkey/` 憑證為公開的預設自簽憑證，僅供快速啟用 HTTPS 加密連線。由於私鑰隨原始碼公開，任何人皆可取得，**不具備身份驗證效力**。若 Dashboard 暴露於不受信任的網路環境，建議自行產生憑證替換：
+> ```bash
+> openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+>   -keyout Dashboard/sslkey/server.key \
+>   -out Dashboard/sslkey/server.crt \
+>   -subj "/CN=your-hostname"
+> ```
+
+---
+
+## 延伸參考
+
+> 以下為進階功能的補充說明。完整原版文件請參考 [miyouzi/aniGamerPlus README](https://github.com/miyouzi/aniGamerPlus/blob/master/README.md)。
+
+### 下載模式說明
+
+影片下載支援兩種底層模式：
+
+- **分段下載模式**（`segment_download_mode: true`，預設）：由 aniGamerPlus 下載個別分段再用 ffmpeg 合併，速度快且可自動重試失敗分段
+- **ffmpeg 下載模式**（`segment_download_mode: false`）：直接將 m3u8 交給 ffmpeg 處理，不產生臨時資料夾
+
+> 詳細比較請參考[原版說明](https://github.com/miyouzi/aniGamerPlus#下載模式説明)。
+
+### Cookie 取得教學
+
+1. 開啟瀏覽器 **無痕模式**，登入動畫瘋（勾選「保持登入狀態」）
+2. F12 開發者工具 → Network → 選取 `ani.gamer.com.tw` → 複製 Cookie 欄位內容
+3. 存為程式目錄下的 `cookie.txt`
+4. 在 config.json 或 Dashboard 設定對應的 UA（可使用 Dashboard「取得當前 UA」按鈕）
+
+> 附截圖的完整步驟請參考[原版教學](https://github.com/miyouzi/aniGamerPlus#cookietxt)。
+
+### 使用代理
+
+支援 `http`、`https`、`socks5h` 代理，可在 Dashboard 或 config.json 中設定。
+
+```
+# 無密碼驗證
+http://example.com:1000
+
+# 有密碼驗證
+http://user:passwd@example.com:1000
+
+# SOCKS5（支援遠端 DNS）
+socks5h://127.0.0.1:1483
+```
+
+> 詳細說明請參考[原版代理設定](https://github.com/miyouzi/aniGamerPlus#使用代理)。
+
+### 資料庫 aniGamer.db
+
+SQLite3 資料庫，記錄影片下載狀態等資訊。一般無需手動修改。
+
+> 欄位結構請參考[原版說明](https://github.com/miyouzi/aniGamerPlus#anigamerdb)。
+
+### 其他原版功能
+
+以下功能由原版提供，本 Fork 完整保留但未修改，詳細設定請參考[原版 README](https://github.com/miyouzi/aniGamerPlus/blob/master/README.md)：
+
+- **[FTP 上傳](https://github.com/miyouzi/aniGamerPlus#configjson)** — 將影片上傳至遠端 FTP 伺服器，支援 FTP over TLS
+- **[coolQ 推送](https://github.com/miyouzi/aniGamerPlus#configjson)** — 下載完成後向酷Q推送通知
+- **[Telegram Bot](https://github.com/miyouzi/aniGamerPlus#configjson)** — 下載完成後透過 Telegram Bot 推送通知
+- **[Discord 推送](https://github.com/miyouzi/aniGamerPlus#configjson)** — 下載完成後透過 Discord 推送通知
+- **[Docker 部署](https://github.com/miyouzi/aniGamerPlus#docker-運行)** — 使用 Docker Container 運行
+
+---
+
+## 鳴謝
+
+- [miyouzi/aniGamerPlus](https://github.com/miyouzi/aniGamerPlus) — 本專案的基礎
+- [BahamutAnimeDownloader](https://github.com/c0re100/BahamutAnimeDownloader) — m3u8 模組參考
