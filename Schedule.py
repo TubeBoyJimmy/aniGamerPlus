@@ -26,9 +26,9 @@ class AnimeSchedule:
         self._last_fetch = None
         self._cache_ttl = 3600    # 快取 1 小時
 
-    def fetch_schedule(self):
-        """抓取排程表, 使用快取避免頻繁請求. 回傳 True 表示成功."""
-        if self._last_fetch and (time.time() - self._last_fetch) < self._cache_ttl:
+    def fetch_schedule(self, force=False):
+        """抓取排程表, 使用快取避免頻繁請求. 回傳 True 表示成功. force=True 時忽略快取."""
+        if not force and self._last_fetch and (time.time() - self._last_fetch) < self._cache_ttl:
             return True
 
         try:
@@ -129,10 +129,10 @@ class AnimeSchedule:
             err_print(0, '排程解析失敗', str(e), status=1, no_sn=True)
             return False
 
-    def should_check_now(self, sn, window_before=30, window_after=120, title_hints=None):
+    def should_check_now(self, sn, window_after=120, title_hints=None):
         """
-        判斷當前時間是否在該 sn 的更新窗口內.
-        回傳 True = 在窗口內, False = 不在窗口內, None = 不在排程表中.
+        判斷當前時間是否已過播出時間且在檢查窗口內.
+        回傳 True = 已到播出時間, False = 尚未到播出時間, None = 不在排程表中.
         title_hints: 來自 sn_list 的標題提示列表, 用於輔助匹配排程表.
         """
         info = self._find_schedule_info(sn, title_hints=title_hints)
@@ -160,11 +160,22 @@ class AnimeSchedule:
         # 加入排程延遲補償
         scheduled_datetime = scheduled_datetime + timedelta(seconds=self._schedule_delay)
 
-        # 檢查是否在窗口內
-        window_start = scheduled_datetime - timedelta(minutes=window_before)
+        # 播出時間後才檢查，不提前
         window_end = scheduled_datetime + timedelta(minutes=window_after)
 
-        return window_start <= now <= window_end
+        return scheduled_datetime <= now <= window_end
+
+    @staticmethod
+    def _title_match(a, b):
+        """判斷兩個標題是否匹配: 要求子字串長度 >= 4 且佔較長字串的 40% 以上"""
+        if not a or not b:
+            return False
+        if a == b:
+            return True
+        shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
+        if shorter in longer:
+            return len(shorter) >= 4 and len(shorter) / len(longer) >= 0.4
+        return False
 
     def _find_schedule_info(self, sn, title_hints=None):
         """在排程表中尋找 sn 對應的排程資訊, 支援 SN 直接匹配、資料庫匹配和標題提示匹配"""
@@ -184,7 +195,10 @@ class AnimeSchedule:
                 if row and row[0]:
                     anime_name = row[0]
                     for title, info in self._title_schedule.items():
-                        if anime_name in title or title in anime_name:
+                        if self._title_match(anime_name, title):
+                            err_print(sn, '排程匹配',
+                                      'DB 標題比對命中: "' + anime_name + '" → "' + title
+                                      + '" (' + info['time'] + ')')
                             return {'day': info['day'], 'time': info['time'], 'title': title}
             except Exception:
                 pass
@@ -195,10 +209,95 @@ class AnimeSchedule:
                 if not hint:
                     continue
                 for title, info in self._title_schedule.items():
-                    if hint in title or title in hint:
+                    if self._title_match(hint, title):
+                        err_print(sn, '排程匹配',
+                                  'title_hint 比對命中: "' + hint + '" → "' + title
+                                  + '" (' + info['time'] + ')')
                         return {'day': info['day'], 'time': info['time'], 'title': title}
 
         return None
+
+    def get_next_check_seconds(self, sn_dict, window_after=120,
+                               schedule_delay=0, title_hints_map=None):
+        """
+        計算距離下一個播出時間的秒數。
+        只關心「下一個還沒到的播出時間」，重試邏輯由主迴圈負責。
+
+        回傳 (seconds, next_time_str):
+          seconds: 距離下次播出的秒數, None 表示無排程資訊
+          next_time_str: 下次播出時間的 HH:MM 字串 (用於日誌)
+        """
+        now = datetime.now()
+        candidates = []
+
+        for sn in sn_dict:
+            hints = title_hints_map.get(sn) if title_hints_map else None
+            sched = self._find_schedule_info(sn, title_hints=hints)
+            if sched is None:
+                continue
+
+            time_str = sched.get('time', '')
+            if not time_str or ':' not in time_str:
+                continue
+            try:
+                hour, minute = map(int, time_str.split(':'))
+            except ValueError:
+                continue
+
+            day = sched['day']
+
+            # 計算本週播出時間
+            days_diff = (now.weekday() - day) % 7
+            scheduled_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0) \
+                           - timedelta(days=days_diff) \
+                           + timedelta(seconds=schedule_delay)
+
+            if now < scheduled_dt:
+                # 播出時間未到 → 等到播出時間
+                candidates.append(scheduled_dt)
+            else:
+                # 播出時間已過 → 下週播出時間
+                candidates.append(scheduled_dt + timedelta(weeks=1))
+
+        if not candidates:
+            return None, ''
+
+        nearest = min(candidates)
+        seconds = max((nearest - now).total_seconds(), 60)  # 至少 60 秒
+        return seconds, nearest.strftime('%H:%M')
+
+    def build_time_table(self, sn_dict, schedule_delay=0, title_hints_map=None):
+        """
+        建構任務時間表: 對每個 sn_list 中的 SN 匹配排程, 算出觸發時間.
+        回傳 {sn: {'day': int, 'time': str, 'trigger_hour': int, 'trigger_minute': int,
+                   'trigger_second': int, 'trigger_time': str, 'title': str}}
+        trigger_time 為顯示用字串, trigger_hour/minute/second 為比對用數值.
+        """
+        self.fetch_schedule()
+        table = {}
+        for sn in sn_dict:
+            hints = title_hints_map.get(sn) if title_hints_map else None
+            info = self._find_schedule_info(sn, title_hints=hints)
+            if info is None:
+                continue
+            air_time = info['time']
+            if not air_time or ':' not in air_time:
+                continue
+            try:
+                hour, minute = map(int, air_time.split(':'))
+            except ValueError:
+                continue
+            trigger_dt = datetime(2000, 1, 1, hour, minute) + timedelta(seconds=schedule_delay)
+            table[sn] = {
+                'day': info['day'],
+                'time': air_time,
+                'trigger_hour': trigger_dt.hour,
+                'trigger_minute': trigger_dt.minute,
+                'trigger_second': trigger_dt.second,
+                'trigger_time': trigger_dt.strftime('%H:%M:%S') if trigger_dt.second else trigger_dt.strftime('%H:%M'),
+                'title': info.get('title', '')
+            }
+        return table
 
     def get_all_scheduled_sns(self):
         """取得排程表中所有 sn"""

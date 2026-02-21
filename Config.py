@@ -29,6 +29,8 @@ max_multi_thread = 5
 max_multi_downloading_segment = 5
 tasks_progress_rate = {}  # 储存任务进度, 供面板使用,
 force_check_sns = set()  # 強制檢查的 SN 集合, 供 Dashboard 立即檢查功能使用
+import threading
+schedule_wake = threading.Event()  # sn_list 變更時通知主迴圈重新計算排程
 # 格式: {sn: {'rate': 任务进度百分比(float), 'status': 任务状态, 'filename': 文件名} }
 # 任务状态有:  '正在下載' '正在解密合并' '正在移至番劇目錄' '任務失敗, 等待重啓' '等待下載'
 

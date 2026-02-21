@@ -12,6 +12,7 @@ monkey.patch_all()
 
 import os, sys, time, re, random, traceback, argparse
 import signal
+from datetime import datetime, timedelta
 import sqlite3
 import threading
 import subprocess
@@ -323,15 +324,14 @@ def download_cd_counter():
 
 
 def check_tasks(sn_subset=None):
+    """檢查更新並生成下載任務. 回傳需要重試的 sn_list SN 集合 (新集未上架或下載失敗)."""
     check_dict = sn_subset if sn_subset is not None else sn_dict
+    need_retry_sns = set()  # 需要重試的 sn_list SN
     for sn in check_dict.keys():
         anime = build_anime(sn)
         if anime['failed']:
             err_print(sn, '更新狀態', '檢查更新失敗, 跳過等待下次檢查', status=1)
-            # # sn 解析冷却
-            # if settings['parse_sn_cd'] > 0:
-            #     err_print("更新資訊", "SN 解析冷卻 " + str(settings['parse_sn_cd']) + " 秒", no_sn=True)
-            #     time.sleep(settings['parse_sn_cd'])
+            need_retry_sns.add(sn)  # 檢查失敗, 需要重試
             continue
         anime = anime['anime']
         err_print(sn, '更新資訊', '正在檢查《' + anime.get_bangumi_name() + '》')
@@ -382,10 +382,12 @@ def check_tasks(sn_subset=None):
                     new_anime = build_anime(latest_sn)
                     if new_anime['failed']:
                         err_print(latest_sn, '更新狀態', '更新數據失敗, 跳過等待下次檢查', status=1)
+                        need_retry_sns.add(sn)
                         continue
                     new_anime = new_anime['anime']
                 insert_db(new_anime)
                 queue[latest_sn] = check_dict[sn]
+    return need_retry_sns
 
         # # sn 解析冷却
         # if settings['parse_sn_cd'] > 0:
@@ -1028,112 +1030,239 @@ if __name__ == '__main__':
     if settings['use_dashboard']:
         run_dashboard()
 
-    # 初始化智慧排程
-    anime_schedule = None
+    def _build_title_hints_map(sn_dict):
+        """從 sn_dict 建構 {sn: [title_hints]} 對照表"""
+        result = {}
+        for sn, info in sn_dict.items():
+            hints = []
+            plex = info.get('plex')
+            if plex:
+                if plex.get('clean_title'):
+                    hints.append(plex['clean_title'])
+                if plex.get('folder_name'):
+                    hints.append(plex['folder_name'])
+            elif info.get('rename'):
+                hints.append(info['rename'])
+            if hints:
+                result[sn] = hints
+        return result
+
+    def _start_queued_workers():
+        """啟動 queue 中等待的下載任務, 回傳新啟動數量"""
+        counter = 0
+        if queue:
+            for task_sn in queue.keys():
+                if task_sn not in processing_queue:
+                    t = threading.Thread(target=worker, args=(task_sn, queue[task_sn]))
+                    t.daemon = True
+                    t.start()
+                    processing_queue.append(task_sn)
+                    counter += 1
+                    err_print(task_sn, '加入任務列隊')
+        return counter
+
+    def _do_check_and_start(sns_subset=None):
+        """執行檢查 + 啟動下載, 回傳 (新任務數, 需要重試的SN集合)"""
+        Config.test_cookie()
+        need_retry = check_tasks(sns_subset)
+        count = _start_queued_workers()
+        return count, need_retry
+
+    # ========== 智慧排程: Timer + Time Table ==========
     if settings.get('smart_schedule', False):
         anime_schedule = AnimeSchedule(
-            settings['ua'],
-            db_path=db_path,
+            settings['ua'], db_path=db_path,
             schedule_delay=settings.get('schedule_delay', 0)
         )
-    # 智慧排程啟用時, 初始化為當前時間, 避免啟動時觸發全量 fallback 檢查
-    last_fallback_check = time.time() if settings.get('smart_schedule', False) else 0
-    force_check_triggered = False
+        anime_schedule.fetch_schedule()
+        title_hints_map = _build_title_hints_map(sn_dict)
+        time_table = anime_schedule.build_time_table(
+            sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+        triggered = set()  # {(sn, day, trigger_time)} 已觸發的任務
+        pending_retry = {}  # {sn: {'next': datetime, 'attempt': int, 'title': str}}
+        RETRY_INTERVALS = [600, 1800, 3600]  # 10分鐘, 30分鐘, 60分鐘
+        last_fallback_check = time.time()
+        last_schedule_refresh = time.time()
+        day_names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
 
+        def _format_schedule_entry(info):
+            """格式化排程條目: 播出時間 + delay 資訊"""
+            line = day_names[info['day']] + ' ' + info['time']
+            if info['trigger_time'] != info['time']:
+                line += ' → ' + info['trigger_time'] + ' (含延遲)'
+            line += ' 《' + info['title'] + '》'
+            return line
+
+        def _prefill_triggered(tt, trig_set):
+            """將今天已過時間的排程預填入 triggered, 避免啟動時誤觸發"""
+            now = datetime.now()
+            for sn, info in tt.items():
+                if now.weekday() == info['day'] and \
+                        (now.hour, now.minute, now.second) > \
+                        (info['trigger_hour'], info['trigger_minute'], info['trigger_second']):
+                    trig_set.add((sn, info['day'], info['trigger_time']))
+
+        # 印出時間表
+        if time_table:
+            err_print(0, '排程模式', '時間表已建立 (' + str(len(time_table)) + ' 項):', no_sn=True)
+            for sn, info in sorted(time_table.items(), key=lambda x: (x[1]['day'], x[1]['trigger_time'])):
+                err_print(sn, '排程', _format_schedule_entry(info))
+            _prefill_triggered(time_table, triggered)
+            if triggered:
+                err_print(0, '排程模式', '已略過 ' + str(len(triggered)) + ' 個今日已過時間的排程', no_sn=True)
+        else:
+            err_print(0, '排程模式', '無排程項目, 將使用 fallback 週期檢查', no_sn=True)
+
+        while True:
+            now = datetime.now()
+
+            # --- sn_list 變更 → 重建時間表 ---
+            if Config.schedule_wake.is_set():
+                Config.schedule_wake.clear()
+                sn_dict = Config.read_sn_list()
+                settings = Config.read_settings()
+                anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
+                title_hints_map = _build_title_hints_map(sn_dict)
+                time_table = anime_schedule.build_time_table(
+                    sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                err_print(0, '排程模式',
+                          'sn_list 已變更, 時間表已更新 (' + str(len(time_table)) + ' 項):', no_sn=True)
+                for sn_t, info_t in sorted(time_table.items(), key=lambda x: (x[1]['day'], x[1]['trigger_time'])):
+                    err_print(sn_t, '排程', _format_schedule_entry(info_t))
+                _prefill_triggered(time_table, triggered)
+
+            # --- Dashboard 強制檢查 ---
+            if Config.force_check_sns:
+                force_sns = {}
+                for sn in list(Config.force_check_sns):
+                    if sn in sn_dict:
+                        force_sns[sn] = sn_dict[sn]
+                    Config.force_check_sns.discard(sn)
+                if force_sns:
+                    err_print(0, '強制檢查', str(len(force_sns)) + ' 個番劇', no_sn=True)
+                    count, _ = _do_check_and_start(force_sns)
+
+            # --- 時間表比對 (每秒比對, triggered set 防重複) ---
+            matched = {}
+            for sn, info in time_table.items():
+                task_id = (sn, info['day'], info['trigger_time'])
+                if task_id in triggered:
+                    continue
+                if now.weekday() != info['day']:
+                    continue
+                # 秒級精度比對: 現在時間 >= 觸發時間
+                if (now.hour, now.minute, now.second) >= \
+                        (info['trigger_hour'], info['trigger_minute'], info['trigger_second']):
+                    triggered.add(task_id)
+                    matched[sn] = sn_dict.get(sn, {})
+                    err_print(sn, '排程觸發',
+                              '《' + info['title'] + '》播出時間到達 (' + info['trigger_time'] + ')')
+
+            if matched:
+                if settings.get('read_sn_list_when_checking_update'):
+                    sn_dict = Config.read_sn_list()
+                if settings.get('read_config_when_checking_update'):
+                    settings = Config.read_settings()
+                    anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
+                danmu = settings['danmu']
+                count, need_retry = _do_check_and_start(matched)
+                err_print(0, '更新資訊',
+                          '添加了 ' + str(count) + ' 個新任務, 列隊中共 '
+                          + str(len(processing_queue)) + ' 個', no_sn=True)
+                # 檢查失敗的 SN → 加入重試佇列
+                for sn in need_retry:
+                    if sn in matched and sn not in pending_retry:
+                        title = time_table[sn]['title'] if sn in time_table else ''
+                        next_dt = now + timedelta(seconds=RETRY_INTERVALS[0])
+                        pending_retry[sn] = {'next': next_dt, 'attempt': 0, 'title': title}
+                        err_print(sn, '排程重試',
+                                  '《' + title + '》檢查失敗, '
+                                  + str(RETRY_INTERVALS[0] // 60) + ' 分鐘後重試')
+                # 排程觸發但完全無新任務 → 可能新集未上架, 加入重試
+                if count == 0:
+                    for sn in matched:
+                        if sn not in pending_retry:
+                            title = time_table[sn]['title'] if sn in time_table else ''
+                            next_dt = now + timedelta(seconds=RETRY_INTERVALS[0])
+                            pending_retry[sn] = {'next': next_dt, 'attempt': 0, 'title': title}
+                            err_print(sn, '排程重試',
+                                      '《' + title + '》未找到新集數, '
+                                      + str(RETRY_INTERVALS[0] // 60) + ' 分鐘後重試')
+
+            # --- 重試佇列檢查 ---
+            retry_done = []
+            for sn, retry_info in pending_retry.items():
+                if now >= retry_info['next']:
+                    err_print(sn, '排程重試',
+                              '《' + retry_info['title'] + '》第 '
+                              + str(retry_info['attempt'] + 1) + ' 次重試')
+                    retry_subset = {sn: sn_dict[sn]} if sn in sn_dict else {}
+                    if retry_subset:
+                        r_count, _ = _do_check_and_start(retry_subset)
+                        if r_count > 0:
+                            err_print(sn, '排程重試',
+                                      '《' + retry_info['title'] + '》重試成功, 已加入下載')
+                            retry_done.append(sn)
+                        else:
+                            retry_info['attempt'] += 1
+                            if retry_info['attempt'] >= len(RETRY_INTERVALS):
+                                err_print(sn, '排程重試',
+                                          '《' + retry_info['title'] + '》已達重試上限, 放棄', status=1)
+                                retry_done.append(sn)
+                            else:
+                                interval = RETRY_INTERVALS[retry_info['attempt']]
+                                retry_info['next'] = now + timedelta(seconds=interval)
+                                err_print(sn, '排程重試',
+                                          '《' + retry_info['title'] + '》仍未上架, '
+                                          + str(interval // 60) + ' 分鐘後再試')
+                    else:
+                        retry_done.append(sn)  # SN 已從 sn_list 移除
+            for sn in retry_done:
+                del pending_retry[sn]
+
+            # --- Fallback: 全量檢查 (不在排程表中的 SN) ---
+            fallback_freq = settings.get('schedule_fallback_frequency', 1440) * 60
+            if (time.time() - last_fallback_check) >= fallback_freq:
+                last_fallback_check = time.time()
+                err_print(0, '排程模式', '執行全量 fallback 檢查', no_sn=True)
+                sn_dict = Config.read_sn_list()
+                settings = Config.read_settings()
+                danmu = settings['danmu']
+                count, _ = _do_check_and_start()
+
+            # --- 定期重新抓取排程表 (每小時) ---
+            if (time.time() - last_schedule_refresh) >= 3600:
+                anime_schedule.fetch_schedule()
+                title_hints_map = _build_title_hints_map(sn_dict)
+                time_table = anime_schedule.build_time_table(
+                    sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                last_schedule_refresh = time.time()
+                err_print(0, '排程模式', '排程表已刷新 (' + str(len(time_table)) + ' 項)', no_sn=True)
+                _prefill_triggered(time_table, triggered)
+
+            # --- 週次重置已觸發清單 ---
+            if now.weekday() == 0 and now.hour == 0 and now.minute == 0:
+                triggered.clear()
+
+            time.sleep(1)
+
+    # ========== 非排程模式: 原始週期輪詢 ==========
     while True:
         print()
         err_print(0, '開始更新', no_sn=True)
-        Config.test_cookie()  # 测试cookie
+        Config.test_cookie()
         if settings['read_sn_list_when_checking_update']:
             sn_dict = Config.read_sn_list()
         if settings['read_config_when_checking_update']:
             settings = Config.read_settings()
-            # 更新排程實例設定
-            if settings.get('smart_schedule', False):
-                if anime_schedule is None:
-                    anime_schedule = AnimeSchedule(
-                        settings['ua'],
-                        db_path=db_path,
-                        schedule_delay=settings.get('schedule_delay', 0)
-                    )
-                else:
-                    anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
-            else:
-                anime_schedule = None
-        danmu = settings['danmu'] # 避免手動加入工作時，global 覆寫掉 config 的 danmu 設定
-
-        # 智慧排程: 只檢查在更新窗口內的番劇
-        if anime_schedule is not None and settings.get('smart_schedule', False):
-            sns_to_check = {}
-
-            if force_check_triggered and Config.force_check_sns:
-                # 強制檢查模式: 只檢查指定的番劇, 不觸發完整排程
-                for sn in list(Config.force_check_sns):
-                    if sn in sn_dict:
-                        sns_to_check[sn] = sn_dict[sn]
-                    Config.force_check_sns.discard(sn)
-                err_print(0, '強制檢查',
-                          '本次只檢查 ' + str(len(sns_to_check)) + ' 個指定番劇',
-                          no_sn=True)
-            else:
-                # 正常排程檢查
-                anime_schedule.fetch_schedule()
-                now_ts = time.time()
-                fallback_freq = settings.get('schedule_fallback_frequency', 1440) * 60
-                do_fallback = (now_ts - last_fallback_check) >= fallback_freq
-
-                for sn, info in sn_dict.items():
-                    # 準備標題提示用於排程匹配 (sn_list 的 SN 可能與排程表不同)
-                    title_hints = []
-                    plex = info.get('plex')
-                    if plex:
-                        if plex.get('clean_title'):
-                            title_hints.append(plex['clean_title'])
-                        if plex.get('folder_name'):
-                            title_hints.append(plex['folder_name'])
-                    elif info.get('rename'):
-                        title_hints.append(info['rename'])
-
-                    result = anime_schedule.should_check_now(
-                        sn,
-                        window_before=settings.get('schedule_window_before', 30),
-                        window_after=settings.get('schedule_window_after', 120),
-                        title_hints=title_hints if title_hints else None
-                    )
-                    if result is True:
-                        sns_to_check[sn] = info
-                    elif result is None and do_fallback:
-                        sns_to_check[sn] = info
-
-                if do_fallback:
-                    last_fallback_check = now_ts
-
-                scheduled_count = len(sns_to_check)
-                deferred_count = len(sn_dict) - scheduled_count
-                err_print(0, '排程模式',
-                          '本次檢查 ' + str(scheduled_count) + ' 個 (排程命中), 延後 ' + str(deferred_count) + ' 個',
-                          no_sn=True)
-            check_tasks(sns_to_check)
-        else:
-            check_tasks()  # 检查更新，生成任务列队
-
-        new_tasks_counter = 0  # 新增任务计数器
-        if queue:
-            for task_sn in queue.keys():
-                if task_sn not in processing_queue:  # 如果该任务没有在进行中，则启动
-                    task = threading.Thread(target=worker, args=(task_sn, queue[task_sn]))
-                    task.daemon = True
-                    task.start()
-                    processing_queue.append(task_sn)
-                    new_tasks_counter = new_tasks_counter + 1
-                    err_print(task_sn, '加入任務列隊')
-        info = '本次更新添加了 '+str(new_tasks_counter)+' 個新任務, 目前列隊中共有 ' + str(len(processing_queue)) + ' 個任務'
-        err_print(0, '更新資訊', info, no_sn=True)
+        danmu = settings['danmu']
+        check_tasks()
+        count = _start_queued_workers()
+        err_print(0, '更新資訊',
+                  '添加了 ' + str(count) + ' 個新任務, 列隊中共 '
+                  + str(len(processing_queue)) + ' 個', no_sn=True)
         err_print(0, '更新終了', no_sn=True)
-        print()
-        force_check_triggered = False
         for i in range(settings['check_frequency'] * 60):
             if Config.force_check_sns:
-                force_check_triggered = True
                 break
-            time.sleep(1)  # cool down, 這麽寫是爲了可以 Ctrl+C 馬上退出
+            time.sleep(1)
