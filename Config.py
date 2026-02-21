@@ -21,7 +21,7 @@ config_path = os.path.join(working_dir, 'config.json')
 sn_list_path = os.path.join(working_dir, 'sn_list.txt')
 cookie_path = os.path.join(working_dir, 'cookie.txt')
 logs_dir = os.path.join(working_dir, 'logs')
-aniGamerPlus_version = 'v1.1.0'
+aniGamerPlus_version = 'v1.1.1'
 latest_config_version = 18.0
 latest_database_version = 2.0
 cookie = None
@@ -864,7 +864,7 @@ def renew_cookies(new_cookie, log=True):
 
 
 def read_latest_version_on_github():
-    req = 'https://api.github.com/repos/miyouzi/aniGamerPlus/releases/latest'
+    req = 'https://api.github.com/repos/TubeBoyJimmy/aniGamerPlus/releases/latest'
     session = requests.session()
     remote_version = {}
     try:
