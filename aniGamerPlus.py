@@ -1121,17 +1121,19 @@ if __name__ == '__main__':
         while True:
             now = datetime.now()
 
-            # --- sn_list 變更 → 重建時間表 ---
+            # --- sn_list 變更 / Dashboard 強制刷新 → 重建時間表 ---
             if Config.schedule_wake.is_set():
                 Config.schedule_wake.clear()
                 sn_dict = Config.read_sn_list()
                 settings = Config.read_settings()
                 anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
+                anime_schedule.fetch_schedule(force=True)
                 title_hints_map = _build_title_hints_map(sn_dict)
                 time_table = anime_schedule.build_time_table(
                     sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                last_schedule_refresh = time.time()
                 err_print(0, '排程模式',
-                          'sn_list 已變更, 時間表已更新 (' + str(len(time_table)) + ' 項):', no_sn=True)
+                          '時間表已更新 (' + str(len(time_table)) + ' 項):', no_sn=True)
                 for sn_t, info_t in sorted(time_table.items(), key=lambda x: (x[1]['day'], x[1]['trigger_time'])):
                     err_print(sn_t, '排程', _format_schedule_entry(info_t))
                 _prefill_triggered(time_table, triggered)

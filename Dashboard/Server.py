@@ -213,6 +213,8 @@ def get_schedule():
         schedule = _schedule_cache
         force_refresh = request.args.get('force', '') == '1'
         schedule.fetch_schedule(force=force_refresh)
+        if force_refresh:
+            Config.schedule_wake.set()  # 通知主迴圈重建時間表
         data = schedule.get_schedule_data()
         # 標記哪些項目在 sn_list 中 (透過 SN 直接匹配 + 標題比對)
         sn_set = set(sn_dict.keys()) if sn_dict else set()
