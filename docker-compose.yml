@@ -2,7 +2,7 @@ name: ani-gamer-plus
 
 services:
   ani-gamer-plus:
-    image: anigamerplus:v1.1.1
+    image: anigamerplus:latest
     container_name: ani-gamer-plus
     restart: unless-stopped
 
