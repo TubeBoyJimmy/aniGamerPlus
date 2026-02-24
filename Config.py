@@ -21,7 +21,7 @@ config_path = os.path.join(working_dir, 'config.json')
 sn_list_path = os.path.join(working_dir, 'sn_list.txt')
 cookie_path = os.path.join(working_dir, 'cookie.txt')
 logs_dir = os.path.join(working_dir, 'logs')
-aniGamerPlus_version = 'v1.1.2'
+aniGamerPlus_version = 'v1.1.4'
 latest_config_version = 18.0
 latest_database_version = 2.0
 cookie = None
@@ -31,6 +31,14 @@ tasks_progress_rate = {}  # 储存任务进度, 供面板使用,
 force_check_sns = set()  # 強制檢查的 SN 集合, 供 Dashboard 立即檢查功能使用
 import threading
 schedule_wake = threading.Event()  # sn_list 變更時通知主迴圈重新計算排程
+schedule_status = {}  # 主迴圈同步的排程狀態，供 Dashboard 讀取
+# 格式: {sn: {'title': str, 'day': int, 'time': str, 'trigger_time': str,
+#   'trigger_hour': int, 'trigger_minute': int, 'trigger_second': int,
+#   'status': 'pending'|'triggered'|'retrying'|'not_today',
+#   'retry_attempt': int, 'retry_next': str|None, 'pinned': bool}}
+schedule_overrides = {}  # Dashboard 設定的排程覆寫
+# 格式: {sn: {'day': int, 'hour': int, 'minute': int, 'second': int}}
+schedule_overrides_lock = threading.Lock()
 # 格式: {sn: {'rate': 任务进度百分比(float), 'status': 任务状态, 'filename': 文件名} }
 # 任务状态有:  '正在下載' '正在解密合并' '正在移至番劇目錄' '任務失敗, 等待重啓' '等待下載'
 

@@ -537,6 +537,81 @@ def schedule_force_check():
     return jsonify({'status': 200, 'sn': matched_sn})
 
 
+@app.route('/data/schedule/timetable', methods=['GET'])
+def get_timetable():
+    """回傳主迴圈的排程時間表狀態"""
+    status = Config.schedule_status
+    day_names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+    items = []
+    for sn, info in status.items():
+        items.append({
+            'sn': sn,
+            'title': info.get('title', ''),
+            'day': info.get('day', 0),
+            'day_name': day_names[info.get('day', 0)],
+            'time': info.get('time', ''),
+            'trigger_time': info.get('trigger_time', ''),
+            'trigger_hour': info.get('trigger_hour', 0),
+            'trigger_minute': info.get('trigger_minute', 0),
+            'trigger_second': info.get('trigger_second', 0),
+            'status': info.get('status', 'not_today'),
+            'retry_attempt': info.get('retry_attempt', 0),
+            'retry_next': info.get('retry_next'),
+            'pinned': info.get('pinned', False),
+        })
+    return jsonify({'items': items})
+
+
+@app.route('/schedule/override', methods=['POST'])
+def set_schedule_override():
+    """設定單項排程覆寫（手動修改觸發時間）"""
+    data = json.loads(request.get_data(as_text=True))
+    try:
+        sn = int(data['sn'])
+        override = {
+            'day': int(data['day']),
+            'hour': int(data['hour']),
+            'minute': int(data['minute']),
+            'second': int(data.get('second', 0)),
+        }
+    except (KeyError, ValueError, TypeError) as e:
+        return jsonify({'error': '參數錯誤: ' + str(e)}), 400
+    with Config.schedule_overrides_lock:
+        Config.schedule_overrides[sn] = override
+    Config.schedule_wake.set()
+    err_print(0, 'Dashboard', '排程覆寫: SN=' + str(sn) + ' → '
+              + str(override['hour']) + ':' + str(override['minute']).zfill(2), no_sn=True, status=2)
+    return jsonify({'status': 200})
+
+
+@app.route('/schedule/override/clear', methods=['POST'])
+def clear_schedule_override():
+    """清除單項排程覆寫（恢復自動排程）"""
+    data = json.loads(request.get_data(as_text=True))
+    try:
+        sn = int(data['sn'])
+    except (KeyError, ValueError, TypeError) as e:
+        return jsonify({'error': '參數錯誤: ' + str(e)}), 400
+    with Config.schedule_overrides_lock:
+        Config.schedule_overrides.pop(sn, None)
+    Config.schedule_wake.set()
+    err_print(0, 'Dashboard', '清除排程覆寫: SN=' + str(sn), no_sn=True, status=2)
+    return jsonify({'status': 200})
+
+
+@app.route('/schedule/force_check_sn', methods=['POST'])
+def schedule_force_check_sn():
+    """透過 SN 直接強制檢查（供排程表使用）"""
+    data = json.loads(request.get_data(as_text=True))
+    try:
+        sn = int(data['sn'])
+    except (KeyError, ValueError, TypeError) as e:
+        return jsonify({'error': '參數錯誤: ' + str(e)}), 400
+    Config.force_check_sns.add(sn)
+    err_print(0, 'Dashboard', '通過排程頁面請求強制檢查 SN=' + str(sn), no_sn=True, status=2)
+    return jsonify({'status': 200, 'sn': sn})
+
+
 def run():
     settings = Config.read_settings()  # 讀取設定
 

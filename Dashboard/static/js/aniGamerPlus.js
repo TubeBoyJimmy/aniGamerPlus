@@ -511,8 +511,43 @@ $(function() {
 		.on('input change', updateSubscribePreview);
 });
 
+var _bahaScheduleLoaded = false;
+
 function loadSchedule(force) {
-	hideSubscribeForm(); // 先將表單移回錨點，避免被 tbody 清空時銷毀
+	// Modal 入口：預設顯示「我的排程」tab
+	switchScheduleTab('my');
+	loadTimetable();
+	// 巴哈排程延遲到切 tab 時載入
+	if (force) {
+		_bahaScheduleLoaded = false;
+		loadBahaSchedule(true);
+		switchScheduleTab('baha');
+	}
+}
+
+function switchScheduleTab(tab) {
+	var $my = $('#schedPanel_my');
+	var $baha = $('#schedPanel_baha');
+	var $tabMy = $('#schedTab_my');
+	var $tabBaha = $('#schedTab_baha');
+	if (tab === 'my') {
+		$baha.hide();
+		$my.show();
+		$tabMy.removeClass('bg-gray-700 text-gray-300').addClass('bg-cyan-600 text-white');
+		$tabBaha.removeClass('bg-cyan-600 text-white').addClass('bg-gray-700 text-gray-300');
+	} else {
+		$my.hide();
+		$baha.show();
+		$tabBaha.removeClass('bg-gray-700 text-gray-300').addClass('bg-cyan-600 text-white');
+		$tabMy.removeClass('bg-cyan-600 text-white').addClass('bg-gray-700 text-gray-300');
+		if (!_bahaScheduleLoaded) {
+			loadBahaSchedule(false);
+		}
+	}
+}
+
+function loadBahaSchedule(force) {
+	hideSubscribeForm();
 	$('#schedule_tbody').html('<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>');
 	$('#schedule_error').addClass('hidden');
 	if (force) {
@@ -524,6 +559,7 @@ function loadSchedule(force) {
 		url: 'data/schedule' + (force ? '?force=1' : ''),
 		dataType: 'json',
 		success: function(data) {
+			_bahaScheduleLoaded = true;
 			if (data.error) {
 				$('#schedule_error').text(data.error).removeClass('hidden');
 			}
@@ -538,6 +574,248 @@ function loadSchedule(force) {
 				$('#btn_force_fetch').prop('disabled', false).html('<i class="fas fa-sync-alt text-xs"></i> 從巴哈重新抓取').removeClass('bg-gray-600 cursor-not-allowed').addClass('bg-blue-600 hover:bg-blue-500');
 			}
 		}
+	});
+	// 強制抓取時也刷新 timetable（因為會觸發主迴圈重建）
+	if (force) {
+		setTimeout(function() { loadTimetable(); }, 2000);
+	}
+}
+
+// === 我的排程表 ===
+function loadTimetable() {
+	$('#timetable_container').html('<div class="text-gray-500 text-center py-3 text-sm">載入中...</div>');
+	$.ajax({
+		type: 'get',
+		url: 'data/schedule/timetable',
+		dataType: 'json',
+		success: function(data) {
+			renderTimetable(data.items || []);
+		},
+		error: function() {
+			$('#timetable_container').html('<div class="text-red-400 text-center py-3 text-sm">載入失敗</div>');
+		}
+	});
+}
+
+function renderTimetable(items) {
+	var container = $('#timetable_container');
+	container.empty();
+
+	if (items.length === 0) {
+		container.html('<div class="text-gray-500 text-center py-3 text-sm">排程模式未啟用或無匹配項目</div>');
+		return;
+	}
+
+	var dayOrder = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+	var jsDay = new Date().getDay();
+	var todayIdx = jsDay === 0 ? 6 : jsDay - 1;
+
+	// 分成今天 / 其他
+	var todayItems = [];
+	var otherItems = [];
+	for (var i = 0; i < items.length; i++) {
+		if (items[i].day === todayIdx) {
+			todayItems.push(items[i]);
+		} else {
+			otherItems.push(items[i]);
+		}
+	}
+
+	// 排序
+	todayItems.sort(function(a, b) { return (a.trigger_time || '').localeCompare(b.trigger_time || ''); });
+	otherItems.sort(function(a, b) {
+		if (a.day !== b.day) return a.day - b.day;
+		return (a.trigger_time || '').localeCompare(b.trigger_time || '');
+	});
+
+	// 今天的排程
+	if (todayItems.length > 0) {
+		container.append(
+			'<div class="text-sm text-cyan-400 font-semibold mb-1 px-1">今天 (' + dayOrder[todayIdx] + ') — ' + todayItems.length + ' 項</div>'
+		);
+		var table = $('<table class="w-full text-sm mb-3"><thead><tr class="bg-gray-800 text-gray-400 text-left">' +
+			'<th class="px-3 py-2 rounded-tl-md">番劇名</th>' +
+			'<th class="px-3 py-2">播出</th>' +
+			'<th class="px-3 py-2">觸發</th>' +
+			'<th class="px-3 py-2">狀態</th>' +
+			'<th class="px-3 py-2 rounded-tr-md">操作</th>' +
+			'</tr></thead><tbody class="divide-y divide-gray-800"></tbody></table>');
+		var tbody = table.find('tbody');
+		for (var j = 0; j < todayItems.length; j++) {
+			tbody.append(_buildTimetableRow(todayItems[j], true));
+		}
+		container.append(table);
+	}
+
+	// 其他日子
+	if (otherItems.length > 0) {
+		container.append(
+			'<div class="text-sm text-gray-400 font-semibold mb-1 px-1 ' + (todayItems.length > 0 ? 'mt-3' : '') + '">其他日子 — ' + otherItems.length + ' 項</div>'
+		);
+		var table2 = $('<table class="w-full text-sm"><thead><tr class="bg-gray-800 text-gray-400 text-left">' +
+			'<th class="px-3 py-2 rounded-tl-md">番劇名</th>' +
+			'<th class="px-3 py-2">播出日</th>' +
+			'<th class="px-3 py-2">播出</th>' +
+			'<th class="px-3 py-2">觸發</th>' +
+			'<th class="px-3 py-2 rounded-tr-md">操作</th>' +
+			'</tr></thead><tbody class="divide-y divide-gray-800"></tbody></table>');
+		var tbody2 = table2.find('tbody');
+		for (var k = 0; k < otherItems.length; k++) {
+			tbody2.append(_buildTimetableRow(otherItems[k], false));
+		}
+		container.append(table2);
+	}
+}
+
+function _buildTimetableRow(item, isToday) {
+	var safeTitle = escapeHtml(item.title);
+	var pinIcon = item.pinned
+		? ' <span class="text-yellow-400 cursor-help" title="已手動覆寫，本週不會被自動刷新覆蓋"><i class="fas fa-thumbtack"></i></span>'
+		: '';
+
+	// 狀態 badge
+	var statusHtml = '';
+	if (isToday) {
+		if (item.status === 'triggered') {
+			statusHtml = '<span class="text-green-400"><i class="fas fa-check-circle"></i> 已觸發</span>';
+		} else if (item.status === 'retrying') {
+			statusHtml = '<span class="text-yellow-400"><i class="fas fa-redo"></i> 重試中 (' + item.retry_attempt + ')</span>';
+		} else {
+			statusHtml = '<span class="text-gray-400"><i class="far fa-clock"></i> 待觸發</span>';
+		}
+	}
+
+	// 操作按鈕
+	var actions = '<button class="text-gray-400 hover:text-cyan-400 transition-colors" onclick="editTimetableItem(' + item.sn + ', this)" title="編輯觸發時間"><i class="fas fa-edit"></i></button>';
+	if (isToday && item.status !== 'triggered') {
+		actions += ' <button class="text-gray-400 hover:text-green-400 transition-colors ml-1" onclick="forceCheckFromTimetable(' + item.sn + ')" title="立即檢查"><i class="fas fa-play"></i></button>';
+	}
+	if (item.pinned) {
+		actions += ' <button class="text-yellow-400 hover:text-red-400 transition-colors ml-1" onclick="clearTimetableOverride(' + item.sn + ')" title="取消覆寫，恢復自動排程"><i class="fas fa-times-circle"></i></button>';
+	}
+
+	var dataAttr = 'data-sn="' + item.sn + '" data-day="' + item.day + '" data-hour="' + item.trigger_hour + '" data-min="' + item.trigger_minute + '" data-sec="' + item.trigger_second + '"';
+
+	if (isToday) {
+		return '<tr class="hover:bg-gray-800/50" id="tt_row_' + item.sn + '" ' + dataAttr + '>' +
+			'<td class="px-3 py-2 text-gray-200">' + safeTitle + '</td>' +
+			'<td class="px-3 py-2 text-gray-400">' + (item.time || '-') + '</td>' +
+			'<td class="px-3 py-2 text-gray-200 tt-trigger-cell">' + (item.trigger_time || '-') + pinIcon + '</td>' +
+			'<td class="px-3 py-2">' + statusHtml + '</td>' +
+			'<td class="px-3 py-2 whitespace-nowrap">' + actions + '</td>' +
+			'</tr>';
+	} else {
+		var dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+		return '<tr class="hover:bg-gray-800/50" id="tt_row_' + item.sn + '" ' + dataAttr + '>' +
+			'<td class="px-3 py-2 text-gray-300">' + safeTitle + '</td>' +
+			'<td class="px-3 py-2 text-gray-500">' + dayNames[item.day] + '</td>' +
+			'<td class="px-3 py-2 text-gray-400">' + (item.time || '-') + '</td>' +
+			'<td class="px-3 py-2 text-gray-300 tt-trigger-cell">' + (item.trigger_time || '-') + pinIcon + '</td>' +
+			'<td class="px-3 py-2 whitespace-nowrap">' + actions + '</td>' +
+			'</tr>';
+	}
+}
+
+function editTimetableItem(sn, btnEl) {
+	var $row = $('#tt_row_' + sn);
+	if (!$row.length) return;
+
+	var $triggerCell = $row.find('.tt-trigger-cell');
+	// 從 data attribute 讀取當前值
+	var day = parseInt($row.attr('data-day')) || 0;
+	var hour = parseInt($row.attr('data-hour')) || 0;
+	var minute = parseInt($row.attr('data-min')) || 0;
+	var second = parseInt($row.attr('data-sec')) || 0;
+
+	$triggerCell.data('original-html', $triggerCell.html());
+
+	var daySelect = '<select class="tt-edit-day bg-gray-800 text-gray-100 border border-gray-600 rounded text-xs px-1 py-0.5 w-12">';
+	var dayNames = ['一', '二', '三', '四', '五', '六', '日'];
+	for (var d = 0; d < 7; d++) {
+		var sel = d === day ? ' selected' : '';
+		daySelect += '<option value="' + d + '"' + sel + '>' + dayNames[d] + '</option>';
+	}
+	daySelect += '</select>';
+
+	$triggerCell.html(
+		daySelect +
+		' <input type="number" min="0" max="23" value="' + hour + '" class="tt-edit-hour bg-gray-800 text-gray-100 border border-gray-600 rounded text-xs px-1 py-0.5 w-10 text-center">' +
+		':<input type="number" min="0" max="59" value="' + minute + '" class="tt-edit-min bg-gray-800 text-gray-100 border border-gray-600 rounded text-xs px-1 py-0.5 w-10 text-center">' +
+		':<input type="number" min="0" max="59" value="' + second + '" class="tt-edit-sec bg-gray-800 text-gray-100 border border-gray-600 rounded text-xs px-1 py-0.5 w-10 text-center">' +
+		' <button class="text-green-400 hover:text-green-300 text-xs ml-1" onclick="saveTimetableOverride(' + sn + ')"><i class="fas fa-check"></i></button>' +
+		' <button class="text-gray-400 hover:text-red-400 text-xs" onclick="cancelTimetableEdit(' + sn + ')"><i class="fas fa-times"></i></button>'
+	);
+}
+
+function cancelTimetableEdit(sn) {
+	var $row = $('#tt_row_' + sn);
+	var $triggerCell = $row.find('.tt-trigger-cell');
+	var originalHtml = $triggerCell.data('original-html');
+	if (originalHtml) {
+		$triggerCell.html(originalHtml);
+	}
+}
+
+function saveTimetableOverride(sn) {
+	var $row = $('#tt_row_' + sn);
+	var $triggerCell = $row.find('.tt-trigger-cell');
+	var day = parseInt($triggerCell.find('.tt-edit-day').val()) || 0;
+	var hour = parseInt($triggerCell.find('.tt-edit-hour').val()) || 0;
+	var minute = parseInt($triggerCell.find('.tt-edit-min').val()) || 0;
+	var second = parseInt($triggerCell.find('.tt-edit-sec').val()) || 0;
+
+	$.ajax({
+		type: 'post',
+		url: 'schedule/override',
+		data: JSON.stringify({ sn: sn, day: day, hour: hour, minute: minute, second: second }),
+		contentType: 'application/json',
+		dataType: 'json',
+		success: function(data) {
+			if (data.status === 200) {
+				// 等主迴圈處理後再刷新
+				setTimeout(function() { loadTimetable(); }, 1500);
+			} else {
+				alert('覆寫失敗：' + (data.error || '未知錯誤'));
+			}
+		},
+		error: function() { alert('覆寫失敗：網路錯誤'); }
+	});
+}
+
+function clearTimetableOverride(sn) {
+	if (!confirm('確定取消覆寫？將恢復使用巴哈排程的自動時間。')) return;
+	$.ajax({
+		type: 'post',
+		url: 'schedule/override/clear',
+		data: JSON.stringify({ sn: sn }),
+		contentType: 'application/json',
+		dataType: 'json',
+		success: function(data) {
+			if (data.status === 200) {
+				setTimeout(function() { loadTimetable(); }, 1500);
+			} else {
+				alert('操作失敗：' + (data.error || '未知錯誤'));
+			}
+		},
+		error: function() { alert('操作失敗：網路錯誤'); }
+	});
+}
+
+function forceCheckFromTimetable(sn) {
+	$.ajax({
+		type: 'post',
+		url: 'schedule/force_check_sn',
+		data: JSON.stringify({ sn: sn }),
+		contentType: 'application/json',
+		dataType: 'json',
+		success: function(data) {
+			if (data.status === 200) {
+				alert('已排入立即檢查 (SN=' + data.sn + ')');
+			} else {
+				alert('操作失敗：' + (data.error || '未知錯誤'));
+			}
+		},
+		error: function() { alert('操作失敗：網路錯誤'); }
 	});
 }
 
@@ -770,7 +1048,8 @@ function submitSubscribe() {
 				alert('訂閱成功！\n' + data.line);
 				hideSubscribeForm();
 				showSnList(); // 同步刷新 sn_list textarea
-				loadSchedule();
+				loadBahaSchedule(false);
+				setTimeout(function() { loadTimetable(); }, 2000);
 			} else {
 				alert('訂閱失敗：' + (data.error || '未知錯誤'));
 			}
@@ -797,7 +1076,8 @@ function unsubscribeAnime(title) {
 			if (data.removed) {
 				alert('已取消訂閱 (SN=' + data.sn + ')');
 				showSnList(); // 同步刷新 sn_list textarea
-				loadSchedule();
+				loadBahaSchedule(false);
+				setTimeout(function() { loadTimetable(); }, 2000);
 			} else {
 				alert('取消訂閱失敗：' + (data.error || '未找到對應條目'));
 			}

@@ -1093,7 +1093,9 @@ if __name__ == '__main__':
         def _format_schedule_entry(info):
             """格式化排程條目: 播出時間 + delay 資訊"""
             line = day_names[info['day']] + ' ' + info['time']
-            if info['trigger_time'] != info['time']:
+            if info.get('pinned'):
+                line += ' → ' + info['trigger_time'] + ' (手動覆寫)'
+            elif info['trigger_time'] != info['time']:
                 line += ' → ' + info['trigger_time'] + ' (含延遲)'
             line += ' 《' + info['title'] + '》'
             return line
@@ -1107,14 +1109,76 @@ if __name__ == '__main__':
                         (info['trigger_hour'], info['trigger_minute'], info['trigger_second']):
                     trig_set.add((sn, info['day'], info['trigger_time']))
 
+        def _apply_overrides(tt, trig_set):
+            """套用 Dashboard 的排程覆寫，並移除已觸發標記以重新判定"""
+            with Config.schedule_overrides_lock:
+                overrides = dict(Config.schedule_overrides)
+            for sn, ov in overrides.items():
+                if sn not in tt:
+                    continue
+                tt[sn]['day'] = ov['day']
+                tt[sn]['trigger_hour'] = ov['hour']
+                tt[sn]['trigger_minute'] = ov['minute']
+                tt[sn]['trigger_second'] = ov['second']
+                sec_str = '{:02d}:{:02d}'.format(ov['hour'], ov['minute'])
+                if ov['second']:
+                    sec_str += ':{:02d}'.format(ov['second'])
+                tt[sn]['trigger_time'] = sec_str
+                tt[sn]['pinned'] = True
+                # 移除該 SN 的所有已觸發標記（時間已改，需重新判定）
+                trig_set.discard((sn, ov['day'], sec_str))
+                to_remove = [t for t in trig_set if t[0] == sn]
+                for t in to_remove:
+                    trig_set.discard(t)
+
+        def _sync_schedule_status(tt, trig_set, retry_dict):
+            """將排程狀態同步至 Config，供 Dashboard 讀取"""
+            now = datetime.now()
+            status = {}
+            for sn, info in tt.items():
+                task_id = (sn, info['day'], info['trigger_time'])
+                if sn in retry_dict:
+                    r = retry_dict[sn]
+                    s = 'retrying'
+                    retry_attempt = r['attempt'] + 1
+                    retry_next = r['next'].isoformat()
+                elif task_id in trig_set:
+                    s = 'triggered'
+                    retry_attempt = 0
+                    retry_next = None
+                elif now.weekday() == info['day']:
+                    s = 'pending'
+                    retry_attempt = 0
+                    retry_next = None
+                else:
+                    s = 'not_today'
+                    retry_attempt = 0
+                    retry_next = None
+                status[sn] = {
+                    'title': info.get('title', ''),
+                    'day': info['day'],
+                    'time': info.get('time', ''),
+                    'trigger_time': info['trigger_time'],
+                    'trigger_hour': info['trigger_hour'],
+                    'trigger_minute': info['trigger_minute'],
+                    'trigger_second': info['trigger_second'],
+                    'status': s,
+                    'retry_attempt': retry_attempt,
+                    'retry_next': retry_next,
+                    'pinned': info.get('pinned', False),
+                }
+            Config.schedule_status = status
+
         # 印出時間表
         if time_table:
+            _apply_overrides(time_table, triggered)
             err_print(0, '排程模式', '時間表已建立 (' + str(len(time_table)) + ' 項):', no_sn=True)
             for sn, info in sorted(time_table.items(), key=lambda x: (x[1]['day'], x[1]['trigger_time'])):
                 err_print(sn, '排程', _format_schedule_entry(info))
             _prefill_triggered(time_table, triggered)
             if triggered:
                 err_print(0, '排程模式', '已略過 ' + str(len(triggered)) + ' 個今日已過時間的排程', no_sn=True)
+            _sync_schedule_status(time_table, triggered, pending_retry)
         else:
             err_print(0, '排程模式', '無排程項目, 將使用 fallback 週期檢查', no_sn=True)
 
@@ -1131,12 +1195,14 @@ if __name__ == '__main__':
                 title_hints_map = _build_title_hints_map(sn_dict)
                 time_table = anime_schedule.build_time_table(
                     sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                _apply_overrides(time_table, triggered)
                 last_schedule_refresh = time.time()
                 err_print(0, '排程模式',
                           '時間表已更新 (' + str(len(time_table)) + ' 項):', no_sn=True)
                 for sn_t, info_t in sorted(time_table.items(), key=lambda x: (x[1]['day'], x[1]['trigger_time'])):
                     err_print(sn_t, '排程', _format_schedule_entry(info_t))
                 _prefill_triggered(time_table, triggered)
+                _sync_schedule_status(time_table, triggered, pending_retry)
 
             # --- Dashboard 強制檢查 ---
             if Config.force_check_sns:
@@ -1195,6 +1261,7 @@ if __name__ == '__main__':
                             err_print(sn, '排程重試',
                                       '《' + title + '》未找到新集數, '
                                       + str(RETRY_INTERVALS[0] // 60) + ' 分鐘後重試')
+                _sync_schedule_status(time_table, triggered, pending_retry)
 
             # --- 重試佇列檢查 ---
             retry_done = []
@@ -1226,6 +1293,8 @@ if __name__ == '__main__':
                         retry_done.append(sn)  # SN 已從 sn_list 移除
             for sn in retry_done:
                 del pending_retry[sn]
+            if retry_done:
+                _sync_schedule_status(time_table, triggered, pending_retry)
 
             # --- Fallback: 全量檢查 (不在排程表中的 SN) ---
             fallback_freq = settings.get('schedule_fallback_frequency', 1440) * 60
@@ -1243,13 +1312,18 @@ if __name__ == '__main__':
                 title_hints_map = _build_title_hints_map(sn_dict)
                 time_table = anime_schedule.build_time_table(
                     sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                _apply_overrides(time_table, triggered)
                 last_schedule_refresh = time.time()
                 err_print(0, '排程模式', '排程表已刷新 (' + str(len(time_table)) + ' 項)', no_sn=True)
                 _prefill_triggered(time_table, triggered)
+                _sync_schedule_status(time_table, triggered, pending_retry)
 
             # --- 週次重置已觸發清單 ---
             if now.weekday() == 0 and now.hour == 0 and now.minute == 0:
                 triggered.clear()
+                with Config.schedule_overrides_lock:
+                    Config.schedule_overrides.clear()
+                _sync_schedule_status(time_table, triggered, pending_retry)
 
             time.sleep(1)
 

@@ -503,13 +503,34 @@
 		<div class="fixed inset-0 bg-black/60" onclick="closeModal('scheduleModal')"></div>
 		<div class="relative w-full max-w-5xl bg-gray-900 rounded-md shadow-2xl border border-gray-700 max-h-[90vh] flex flex-col">
 			<div class="flex items-center justify-between p-4 border-b border-gray-700 shrink-0">
-				<h3 class="text-lg font-bold text-gray-100">排程資訊</h3>
+				<div class="flex items-center gap-4">
+					<h3 class="text-lg font-bold text-gray-100">排程資訊</h3>
+					<div class="flex gap-1">
+						<button onclick="switchScheduleTab('my')" id="schedTab_my"
+							class="sched-tab text-sm px-3 py-1 rounded-md transition-colors bg-cyan-600 text-white">我的排程</button>
+						<button onclick="switchScheduleTab('baha')" id="schedTab_baha"
+							class="sched-tab text-sm px-3 py-1 rounded-md transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600">巴哈排程</button>
+					</div>
+				</div>
 				<button onclick="closeModal('scheduleModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
 			</div>
-			<div class="p-5 overflow-y-auto">
+
+			<!-- Tab: 我的排程 -->
+			<div id="schedPanel_my" class="p-5 overflow-y-auto">
+				<div class="flex items-center justify-between mb-3">
+					<span class="text-sm text-gray-400">排程時間表狀態</span>
+					<button type="button" onclick="loadTimetable()" class="text-gray-400 hover:text-gray-200 text-xs transition-colors" title="重新載入排程狀態"><i class="fas fa-sync-alt"></i> 刷新</button>
+				</div>
+				<div id="timetable_container">
+					<div class="text-gray-500 text-center py-3 text-sm">載入中...</div>
+				</div>
+			</div>
+
+			<!-- Tab: 巴哈排程 -->
+			<div id="schedPanel_baha" class="p-5 overflow-y-auto" style="display:none">
 				<div class="flex items-center gap-3 mb-4">
 					<span class="text-sm text-gray-400">上次抓取：<span id="schedule_last_fetch" class="text-gray-200">-</span></span>
-					<button type="button" onclick="loadSchedule(true)" id="btn_force_fetch"
+					<button type="button" onclick="loadBahaSchedule(true)" id="btn_force_fetch"
 						class="bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-md px-3 py-1 transition-colors inline-flex items-center gap-1"
 						title="忽略快取，從巴哈動畫瘋重新抓取最新排程表（季度換新時使用）"><i class="fas fa-sync-alt text-xs"></i> 從巴哈重新抓取</button>
 				</div>
@@ -593,11 +614,12 @@
 							</tr>
 						</thead>
 						<tbody id="schedule_tbody" class="divide-y divide-gray-800">
-							<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">載入中...</td></tr>
+							<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">點擊「從巴哈重新抓取」載入排程</td></tr>
 						</tbody>
 					</table>
 				</div>
 			</div>
+
 			<div class="flex justify-end p-4 border-t border-gray-700 shrink-0">
 				<button onclick="closeModal('scheduleModal')" class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-md px-5 py-2 transition-colors">關閉</button>
 			</div>
