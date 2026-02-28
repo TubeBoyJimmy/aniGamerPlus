@@ -45,76 +45,53 @@ class AnimeSchedule:
             sn_schedule = {}
             title_schedule = {}
 
-            # 解析 timeline-ver 中的排程 (依日期排列, 含星期和時間)
-            timeline_ver = soup.find('div', class_='timeline-ver')
-            if timeline_ver is None:
-                err_print(0, '排程解析', '未找到排程區塊 (.timeline-ver)', status=1, no_sn=True)
-                return False
-
-            newanime_block = timeline_ver.find('div', class_='newanime-block')
-            if newanime_block is None:
-                err_print(0, '排程解析', '未找到排程區塊 (.newanime-block)', status=1, no_sn=True)
+            # 解析週期表 (預定播出時間, 不受延播影響)
+            # 週期表位於 div.programlist-wrap, 以 <h3> 分隔星期, <a.text-anime-info> 為各項目
+            programlist = soup.find('div', class_='programlist-wrap')
+            if programlist is None:
+                err_print(0, '排程解析', '未找到週期表區塊 (.programlist-wrap)', status=1, no_sn=True)
                 return False
 
             # 星期對應 (Python weekday: 0=Monday)
             day_map = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
 
-            anime_items = newanime_block.find_all('div', class_='newanime-date-area')
-            for item in anime_items:
-                if 'premium-block' in item.get('class', []):
+            current_day = -1
+            for el in programlist.find_all(['h3', 'a']):
+                if el.name == 'h3':
+                    h3_text = el.get_text(strip=True)
+                    for day_char, day_num in day_map.items():
+                        if '週' + day_char in h3_text:
+                            current_day = day_num
+                            break
                     continue
 
-                # 取得連結和 SN
-                link = item.find('a', class_='anime-card-block')
-                if not link:
+                # <a class="text-anime-info">
+                if el.name != 'a' or 'text-anime-info' not in el.get('class', []):
                     continue
-                href = link.get('href', '')
+                if current_day == -1:
+                    continue
+
+                # 取得 SN
+                href = el.get('href', '')
                 sn_match = re.findall(r'sn=(\d+)', href)
                 if not sn_match:
                     continue
                 sn = int(sn_match[0])
 
-                # 取得標題
-                name_el = item.find('p', class_='anime-name')
-                title = name_el.get_text(strip=True) if name_el else ''
-
                 # 取得時間
-                time_el = item.find('span', class_='anime-hours')
+                time_el = el.find('span', class_='text-anime-time')
                 air_time = time_el.get_text(strip=True) if time_el else ''
 
-                # 取得日期資訊, 推斷星期幾
-                date_info_el = item.find(class_='anime-date-info')
-                day_of_week = -1
-                if date_info_el:
-                    date_text = date_info_el.get_text(strip=True)
-                    # 嘗試從日期文字中解析星期
-                    for day_char, day_num in day_map.items():
-                        if '(' + day_char + ')' in date_text or '（' + day_char + '）' in date_text \
-                                or '週' + day_char in date_text:
-                            day_of_week = day_num
-                            break
-                    # 如果從括號中找不到, 嘗試從日期推算
-                    if day_of_week == -1:
-                        date_match = re.findall(r'(\d+)/(\d+)', date_text)
-                        if date_match:
-                            month, day = int(date_match[0][0]), int(date_match[0][1])
-                            try:
-                                now = datetime.now()
-                                year = now.year
-                                dt = datetime(year, month, day)
-                                day_of_week = dt.weekday()
-                            except ValueError:
-                                pass
-
-                if day_of_week == -1:
-                    continue
+                # 取得標題
+                name_el = el.find('p', class_='text-anime-name')
+                title = name_el.get_text(strip=True) if name_el else ''
 
                 entry = {'sn': sn, 'title': title, 'time': air_time}
-                if day_of_week not in schedule:
-                    schedule[day_of_week] = []
-                schedule[day_of_week].append(entry)
-                sn_schedule[sn] = {'day': day_of_week, 'time': air_time, 'title': title}
-                title_schedule[title] = {'day': day_of_week, 'time': air_time, 'sn': sn}
+                if current_day not in schedule:
+                    schedule[current_day] = []
+                schedule[current_day].append(entry)
+                sn_schedule[sn] = {'day': current_day, 'time': air_time, 'title': title}
+                title_schedule[title] = {'day': current_day, 'time': air_time, 'sn': sn}
 
             self._schedule = schedule
             self._sn_schedule = sn_schedule
