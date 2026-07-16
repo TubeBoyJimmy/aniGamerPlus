@@ -21,6 +21,12 @@ import socket
 import pip_system_certs.wrapt_requests
 import requests
 
+# 巴哈 WAF 以 TLS 指紋攔截非瀏覽器請求, 優先走 curl_cffi (詳見 Anime.py)
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
+
 import Config
 from Anime import Anime, TryTooManyTimeError
 from ColorPrint import err_print
@@ -784,6 +790,9 @@ def __init_proxy():
 
 
 def do_request(url, headers, cookies, params=None):
+    if curl_requests is not None:
+        session = curl_requests.Session(impersonate='chrome', thread='gevent')
+        return session.get(url, headers=headers, cookies=cookies, params=params)
     return requests.get(url, headers=headers, cookies=cookies, params=params)
 
 

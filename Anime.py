@@ -17,6 +17,19 @@ import socket
 import threading
 from urllib.parse import quote
 
+# 2026-07 起巴哈 WAF 以 TLS 指紋全面攔截非瀏覽器請求 (403 挑戰頁),
+# requests 與 pyhttpx 的指紋均已被識別, 對 ani.gamer.com.tw 的請求須走 curl_cffi 模擬真實 Chrome
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
+
+if curl_requests is not None:
+    _REQUEST_EXCEPTIONS = (requests.exceptions.RequestException,
+                           curl_requests.exceptions.RequestException)
+else:
+    _REQUEST_EXCEPTIONS = (requests.exceptions.RequestException,)
+
 
 class TryTooManyTimeError(BaseException):
     pass
@@ -31,11 +44,18 @@ class Anime:
         self._temp_dir = self._settings['temp_dir']
         self._gost_port = str(gost_port)
 
-        self._session = requests.session()
-        if 'firefox' in self._settings['ua'].lower():
-            self._pyhttpx_session = pyhttpx.HttpSession(browser_type='firefox')
+        if curl_requests is not None:
+            # 所有請求 (頁面/ajax/m3u8/分段) 統一走同一個 curl_cffi session, cookie 狀態共用
+            # thread='gevent': curl 為 C 阻塞呼叫, monkey patch 無法接管,
+            # 交給 gevent threadpool 執行以免卡住其他 greenlet (Dashboard/並行下載)
+            self._session = curl_requests.Session(impersonate='chrome', thread='gevent')
+            self._pyhttpx_session = self._session
         else:
-            self._pyhttpx_session = pyhttpx.HttpSession(browser_type='chrome')
+            self._session = requests.session()
+            if 'firefox' in self._settings['ua'].lower():
+                self._pyhttpx_session = pyhttpx.HttpSession(browser_type='firefox')
+            else:
+                self._pyhttpx_session = pyhttpx.HttpSession(browser_type='chrome')
         self._title = ''
         self._sn = sn
         self._bangumi_name = ''
@@ -150,8 +170,13 @@ class Anime:
             try:
                 self._title = soup.find('div', 'anime_name').h1.string  # 提取标题（含有集数）
             except (TypeError, AttributeError):
-                # 该sn下没有动画
-                err_print(self._sn, 'ERROR: 該 sn 下真的有動畫？', status=1)
+                page_title = soup.title.string if soup.title else ''
+                if soup.find('div', class_='captcha') is not None or '系統異常' in str(page_title):
+                    # 收到的是 WAF 人機驗證頁, 不是動畫頁
+                    err_print(self._sn, 'ERROR: 頁面被反爬蟲機制攔截 (人機驗證頁)', status=1)
+                else:
+                    # 该sn下没有动画
+                    err_print(self._sn, 'ERROR: 該 sn 下真的有動畫？', status=1)
                 self._episode_list = {}
                 sys.exit(1)
 
@@ -277,7 +302,11 @@ class Anime:
             cookies = {}
         while True:
             try:
-                if use_pyhttpx:
+                if curl_requests is not None:
+                    # curl_cffi: 頁面與 ajax 走同一 session (瀏覽器 TLS 指紋)
+                    f = self._session.get(req, headers=current_header, cookies=cookies, timeout=10,
+                                          proxies=self._proxies or None)
+                elif use_pyhttpx:
                     # https://github.com/miyouzi/aniGamerPlus/issues/249 pyhttpx 作者 在改動
                     # https://github.com/zero3301/pyhttpx/commit/4735190df741f4c00287ec948f0734fd2c21bfee
                     # 把 proxy 驗證放到了 proxies URL 裏面
@@ -285,7 +314,7 @@ class Anime:
                                                   proxies=self._proxies)
                 else:
                     f = self._session.get(req, headers=current_header, cookies=cookies, timeout=10)
-            except requests.exceptions.RequestException as e:
+            except _REQUEST_EXCEPTIONS as e:
                 if error_cnt >= max_retry >= 0:
                     raise TryTooManyTimeError('任務狀態: sn=' + str(self._sn) + ' 请求失败次数过多！请求链接：\n%s' % req)
                 err_detail = 'ERROR: 请求失败！except：\n' + str(e) + '\n3s后重试(最多重试' + str(max_retry) + '次)'
@@ -368,10 +397,10 @@ class Anime:
         return f
 
     def __request_json(self, req, no_cookies=False, show_fail=True, max_retry=3, addition_header=None, use_pyhttpx = False):
-        if use_pyhttpx:
-            return self.__request(req, no_cookies, show_fail, max_retry, addition_header, use_pyhttpx).json
-        else:
-            return self.__request(req, no_cookies, show_fail, max_retry, addition_header, use_pyhttpx).json()
+        f = self.__request(req, no_cookies, show_fail, max_retry, addition_header, use_pyhttpx)
+        if use_pyhttpx and curl_requests is None:
+            return f.json  # pyhttpx 的 json 為屬性
+        return f.json()
 
     def __get_m3u8_dict(self):
         # m3u8获取模块参考自 https://github.com/c0re100/BahamutAnimeDownloader

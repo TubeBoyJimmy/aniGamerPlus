@@ -33,6 +33,7 @@ class AnimeSchedule:
         self._last_fail = None
         self._fail_cooldown = 600  # 失敗冷卻 10 分鐘, 避免連續請求墊高 WAF 風控分數
         self._session = None       # pyhttpx session (lazy init)
+        self._curl_session = None  # curl_cffi session (lazy init)
 
     def __request_homepage(self):
         # 巴哈 WAF 以 TLS 指紋識別非瀏覽器請求而回 403 (裸 requests 與 pyhttpx 的舊版指紋均已被識別),
@@ -40,9 +41,12 @@ class AnimeSchedule:
         # 不帶用戶 cookie: 首頁排程為公開內容, 避免誤觸用戶 cookie 的一次性刷新機制
         url = 'https://ani.gamer.com.tw/'
         if curl_requests is not None:
-            return curl_requests.get(url, impersonate='chrome', timeout=15,
-                                     headers={'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6'},
-                                     proxies=self._proxies or None)
+            if self._curl_session is None:
+                # thread='gevent': curl 為 C 阻塞呼叫, 交給 gevent threadpool 以免卡住其他 greenlet
+                self._curl_session = curl_requests.Session(impersonate='chrome', thread='gevent')
+            return self._curl_session.get(url, timeout=15,
+                                          headers={'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6'},
+                                          proxies=self._proxies or None)
         if self._session is None:
             browser_type = 'firefox' if 'firefox' in self._ua.lower() else 'chrome'
             self._session = pyhttpx.HttpSession(browser_type=browser_type)

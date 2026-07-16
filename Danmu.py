@@ -7,6 +7,12 @@ import os
 import Config
 from ColorPrint import err_print
 
+# 巴哈 WAF 以 TLS 指紋攔截非瀏覽器請求, 優先走 curl_cffi (詳見 Anime.py)
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
+
 
 class Danmu():
     def __init__(self, sn, full_filename, cookies):
@@ -37,7 +43,11 @@ class Danmu():
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
         }
         data = {'sn': str(self._sn)}
-        r = requests.post(
+        if curl_requests is not None:
+            req_client = curl_requests.Session(impersonate='chrome', thread='gevent')
+        else:
+            req_client = requests
+        r = req_client.post(
             'https://ani.gamer.com.tw/ajax/danmuGet.php', data=data, headers=h)
 
         if r.status_code != 200:
@@ -54,7 +64,7 @@ class Danmu():
             'user-agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
         }
-        ban_words_response = requests.get(
+        ban_words_response = req_client.get(
             'https://ani.gamer.com.tw/ajax/keywordGet.php', headers=h, cookies=self._cookies)
 
         if ban_words_response.status_code != 200:
