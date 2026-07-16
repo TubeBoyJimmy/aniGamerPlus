@@ -139,3 +139,8 @@ Dashboard/sslkey/server.key.bak
 
 # Claude Code
 .claude/
+
+# Docker build artifacts
+*.tar
+aniGamerPlus_v*.zip
+ffmpeg.exe
