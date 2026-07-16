@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from ColorPrint import err_print
 
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
+
 
 class AnimeSchedule:
     """抓取並快取動畫瘋每週排程表, 判斷是否在更新窗口內"""
@@ -30,23 +35,24 @@ class AnimeSchedule:
         self._session = None       # pyhttpx session (lazy init)
 
     def __request_homepage(self):
-        # 走 pyhttpx (瀏覽器 TLS 指紋): 裸 requests 的 TLS 指紋會被巴哈 WAF 判定為爬蟲而 403
+        # 巴哈 WAF 以 TLS 指紋識別非瀏覽器請求而回 403 (裸 requests 與 pyhttpx 的舊版指紋均已被識別),
+        # 優先走 curl_cffi 模擬真實 Chrome 指紋, 未安裝時退回 pyhttpx
         # 不帶用戶 cookie: 首頁排程為公開內容, 避免誤觸用戶 cookie 的一次性刷新機制
+        url = 'https://ani.gamer.com.tw/'
+        if curl_requests is not None:
+            return curl_requests.get(url, impersonate='chrome', timeout=15,
+                                     headers={'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6'},
+                                     proxies=self._proxies or None)
         if self._session is None:
             browser_type = 'firefox' if 'firefox' in self._ua.lower() else 'chrome'
             self._session = pyhttpx.HttpSession(browser_type=browser_type)
-        host = 'ani.gamer.com.tw'
         headers = {
             'User-Agent': self._ua,
-            'referer': 'https://' + host + '/',
             'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate',
-            'Cache-Control': 'max-age=0',
-            'Origin': 'https://' + host,
         }
-        return self._session.get('https://' + host + '/', headers=headers,
-                                 timeout=15, proxies=self._proxies)
+        return self._session.get(url, headers=headers, timeout=15, proxies=self._proxies)
 
     def fetch_schedule(self, force=False):
         """抓取排程表, 使用快取避免頻繁請求. 回傳 True 表示成功. force=True 時忽略快取與失敗冷卻."""
