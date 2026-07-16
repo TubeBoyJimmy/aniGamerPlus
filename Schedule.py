@@ -6,7 +6,7 @@ import re
 import time
 import sqlite3
 import os
-import requests
+import pyhttpx
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from ColorPrint import err_print
@@ -25,17 +25,41 @@ class AnimeSchedule:
         self._title_schedule = {} # {title: {'day': int, 'time': 'HH:MM', 'sn': int}}
         self._last_fetch = None
         self._cache_ttl = 3600    # 快取 1 小時
+        self._last_fail = None
+        self._fail_cooldown = 600  # 失敗冷卻 10 分鐘, 避免連續請求墊高 WAF 風控分數
+        self._session = None       # pyhttpx session (lazy init)
+
+    def __request_homepage(self):
+        # 走 pyhttpx (瀏覽器 TLS 指紋): 裸 requests 的 TLS 指紋會被巴哈 WAF 判定為爬蟲而 403
+        # 不帶用戶 cookie: 首頁排程為公開內容, 避免誤觸用戶 cookie 的一次性刷新機制
+        if self._session is None:
+            browser_type = 'firefox' if 'firefox' in self._ua.lower() else 'chrome'
+            self._session = pyhttpx.HttpSession(browser_type=browser_type)
+        host = 'ani.gamer.com.tw'
+        headers = {
+            'User-Agent': self._ua,
+            'referer': 'https://' + host + '/',
+            'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate',
+            'Cache-Control': 'max-age=0',
+            'Origin': 'https://' + host,
+        }
+        return self._session.get('https://' + host + '/', headers=headers,
+                                 timeout=15, proxies=self._proxies)
 
     def fetch_schedule(self, force=False):
-        """抓取排程表, 使用快取避免頻繁請求. 回傳 True 表示成功. force=True 時忽略快取."""
-        if not force and self._last_fetch and (time.time() - self._last_fetch) < self._cache_ttl:
-            return True
+        """抓取排程表, 使用快取避免頻繁請求. 回傳 True 表示成功. force=True 時忽略快取與失敗冷卻."""
+        if not force:
+            if self._last_fetch and (time.time() - self._last_fetch) < self._cache_ttl:
+                return True
+            if self._last_fail and (time.time() - self._last_fail) < self._fail_cooldown:
+                return False  # 失敗冷卻中, 不重複請求
 
         try:
-            url = 'https://ani.gamer.com.tw/'
-            headers = {'User-Agent': self._ua}
-            resp = requests.get(url, headers=headers, proxies=self._proxies, timeout=15)
+            resp = self.__request_homepage()
             if resp.status_code != 200:
+                self._last_fail = time.time()
                 err_print(0, '排程解析', '首頁請求失敗, HTTP ' + str(resp.status_code), status=1, no_sn=True)
                 return False
 
@@ -49,6 +73,7 @@ class AnimeSchedule:
             # 週期表位於 div.programlist-wrap, 以 <h3> 分隔星期, <a.text-anime-info> 為各項目
             programlist = soup.find('div', class_='programlist-wrap')
             if programlist is None:
+                self._last_fail = time.time()
                 err_print(0, '排程解析', '未找到週期表區塊 (.programlist-wrap)', status=1, no_sn=True)
                 return False
 
@@ -97,12 +122,14 @@ class AnimeSchedule:
             self._sn_schedule = sn_schedule
             self._title_schedule = title_schedule
             self._last_fetch = time.time()
+            self._last_fail = None
 
             total = sum(len(v) for v in schedule.values())
             err_print(0, '排程解析', '成功解析 ' + str(total) + ' 個排程項目', status=2, no_sn=True)
             return True
 
         except Exception as e:
+            self._last_fail = time.time()
             err_print(0, '排程解析失敗', str(e), status=1, no_sn=True)
             return False
 

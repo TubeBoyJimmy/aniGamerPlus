@@ -1079,7 +1079,7 @@ if __name__ == '__main__':
             settings['ua'], db_path=db_path,
             schedule_delay=settings.get('schedule_delay', 0)
         )
-        anime_schedule.fetch_schedule()
+        schedule_ok = anime_schedule.fetch_schedule()
         title_hints_map = _build_title_hints_map(sn_dict)
         time_table = anime_schedule.build_time_table(
             sn_dict, settings.get('schedule_delay', 0), title_hints_map)
@@ -1182,6 +1182,17 @@ if __name__ == '__main__':
         else:
             err_print(0, '排程模式', '無排程項目, 將使用 fallback 週期檢查', no_sn=True)
 
+        if not schedule_ok:
+            # 排程表抓取失敗 (如 WAF 403): 立即全量檢查一次, 避免空等 fallback 週期
+            err_print(0, '排程模式',
+                      '排程表抓取失敗, 立即執行一次全量檢查, 之後每 15 分鐘重試抓取排程表',
+                      status=1, no_sn=True)
+            count, _ = _do_check_and_start()
+            err_print(0, '更新資訊',
+                      '添加了 ' + str(count) + ' 個新任務, 列隊中共 '
+                      + str(len(processing_queue)) + ' 個', no_sn=True)
+            last_fallback_check = time.time()
+
         while True:
             now = datetime.now()
 
@@ -1191,7 +1202,7 @@ if __name__ == '__main__':
                 sn_dict = Config.read_sn_list()
                 settings = Config.read_settings()
                 anime_schedule._schedule_delay = settings.get('schedule_delay', 0)
-                anime_schedule.fetch_schedule(force=True)
+                schedule_ok = anime_schedule.fetch_schedule(force=True)
                 title_hints_map = _build_title_hints_map(sn_dict)
                 time_table = anime_schedule.build_time_table(
                     sn_dict, settings.get('schedule_delay', 0), title_hints_map)
@@ -1306,17 +1317,25 @@ if __name__ == '__main__':
                 danmu = settings['danmu']
                 count, _ = _do_check_and_start()
 
-            # --- 定期重新抓取排程表 (每小時) ---
-            if (time.time() - last_schedule_refresh) >= 3600:
-                anime_schedule.fetch_schedule()
-                title_hints_map = _build_title_hints_map(sn_dict)
-                time_table = anime_schedule.build_time_table(
-                    sn_dict, settings.get('schedule_delay', 0), title_hints_map)
-                _apply_overrides(time_table, triggered)
+            # --- 定期重新抓取排程表 (正常每小時; 抓取失敗時每 15 分鐘重試) ---
+            refresh_interval = 3600 if schedule_ok else 900
+            if (time.time() - last_schedule_refresh) >= refresh_interval:
+                was_ok = schedule_ok
+                schedule_ok = anime_schedule.fetch_schedule()
                 last_schedule_refresh = time.time()
-                err_print(0, '排程模式', '排程表已刷新 (' + str(len(time_table)) + ' 項)', no_sn=True)
-                _prefill_triggered(time_table, triggered)
-                _sync_schedule_status(time_table, triggered, pending_retry)
+                if schedule_ok:
+                    title_hints_map = _build_title_hints_map(sn_dict)
+                    time_table = anime_schedule.build_time_table(
+                        sn_dict, settings.get('schedule_delay', 0), title_hints_map)
+                    _apply_overrides(time_table, triggered)
+                    err_print(0, '排程模式', '排程表已刷新 (' + str(len(time_table)) + ' 項)', no_sn=True)
+                    _prefill_triggered(time_table, triggered)
+                    if not was_ok:
+                        # 排程表恢復: 全量檢查一次, 補上失效期間可能漏掉的更新
+                        err_print(0, '排程模式', '排程表已恢復, 執行一次全量檢查補漏', status=2, no_sn=True)
+                        count, _ = _do_check_and_start()
+                        last_fallback_check = time.time()
+                    _sync_schedule_status(time_table, triggered, pending_retry)
 
             # --- 週次重置已觸發清單 ---
             if now.weekday() == 0 and now.hour == 0 and now.minute == 0:
