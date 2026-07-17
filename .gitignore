@@ -144,3 +144,6 @@ Dashboard/sslkey/server.key.bak
 *.tar
 aniGamerPlus_v*.zip
 ffmpeg.exe
+
+# Local deployment docs (contains LAN/NAS details)
+DOCKER_DEPLOY.md
