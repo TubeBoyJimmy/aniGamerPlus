@@ -131,8 +131,14 @@ cookie2.txt
 .claude/
 .git/
 .github/
+.idea/
+.vs/
 releases/
 master/
 screenshot/
 *.exe
 TEST_CHECKLIST.md
+
+# 舊版 image/釋出檔 (絕不能烤進新 image, 否則體積滾雪球)
+*.tar
+aniGamerPlus_v*.zip

@@ -21,7 +21,7 @@ config_path = os.path.join(working_dir, 'config.json')
 sn_list_path = os.path.join(working_dir, 'sn_list.txt')
 cookie_path = os.path.join(working_dir, 'cookie.txt')
 logs_dir = os.path.join(working_dir, 'logs')
-aniGamerPlus_version = 'v1.1.8'
+aniGamerPlus_version = 'v1.1.9'
 latest_config_version = 18.0
 latest_database_version = 2.0
 cookie = None
@@ -827,7 +827,22 @@ def invalid_cookie():
                 os.remove(invalid_cookie_path)
             os.rename(cookie_path, invalid_cookie_path)
         except BaseException as e:
-            __color_print(0, 'cookie狀態', '嘗試標記失效cookie時遇到未知錯誤: ' + str(e), no_sn=True, status=1)
+            # Docker 環境下 cookie.txt 為 bind mount 掛載點, 無法 rename (EBUSY);
+            # 退而求其次: 內容備份到 invalid_cookie.txt 後原地清空, 效果等同標記失效
+            try:
+                with cookie_write_lock:
+                    with open(cookie_path, 'r', encoding='utf-8') as f:
+                        old_content = f.read()
+                    if old_content.strip():
+                        with open(invalid_cookie_path, 'w', encoding='utf-8') as f:
+                            f.write(old_content)
+                        with open(cookie_path, 'w', encoding='utf-8') as f:
+                            f.write('')
+                __color_print(0, 'cookie狀態', '已清空失效cookie (bind mount 無法改名), 內容備份於 invalid_cookie.txt',
+                              no_sn=True, status=1)
+            except BaseException as e2:
+                __color_print(0, 'cookie狀態', '嘗試標記失效cookie時遇到未知錯誤: ' + str(e) + ' / ' + str(e2),
+                              no_sn=True, status=1)
         else:
             __color_print(0, 'cookie狀態', '已成功標記失效cookie', no_sn=True, display=False)
 
