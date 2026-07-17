@@ -118,8 +118,11 @@ class AnimeSchedule:
                 air_time = time_el.get_text(strip=True) if time_el else ''
 
                 # 取得標題
+                # 空白正規化: 巴哈官方標題可能含連續空格 (如「小書痴的下剋上  為了成為…」),
+                # 而 DB 的 anime_name 在寫入前已被壓成單空格 (Anime.get_bangumi_name),
+                # 不做同樣處理會讓後續的子字串比對一個空格之差 miss
                 name_el = el.find('p', class_='text-anime-name')
-                title = name_el.get_text(strip=True) if name_el else ''
+                title = re.sub(r'\s+', ' ', name_el.get_text(strip=True)) if name_el else ''
 
                 entry = {'sn': sn, 'title': title, 'time': air_time}
                 if current_day not in schedule:
@@ -184,6 +187,9 @@ class AnimeSchedule:
         """判斷兩個標題是否匹配: 要求子字串長度 >= 4 且佔較長字串的 40% 以上"""
         if not a or not b:
             return False
+        # 兩邊空白正規化 (含全形空格), 抵銷各資料來源對連續空格處理不一致的問題
+        a = re.sub(r'\s+', ' ', a).strip()
+        b = re.sub(r'\s+', ' ', b).strip()
         if a == b:
             return True
         shorter, longer = (a, b) if len(a) <= len(b) else (b, a)

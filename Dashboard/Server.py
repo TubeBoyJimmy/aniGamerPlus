@@ -206,9 +206,9 @@ def get_schedule():
     try:
         sn_dict = Config.read_sn_list()
         settings = Config.read_settings()
+        from Schedule import AnimeSchedule
         # 優先使用快取的排程實例 (內建 1 小時快取 TTL)
         if _schedule_cache is None:
-            from Schedule import AnimeSchedule
             _schedule_cache = AnimeSchedule(settings.get('ua', ''), schedule_delay=0)
         schedule = _schedule_cache
         force_refresh = request.args.get('force', '') == '1'
@@ -220,35 +220,30 @@ def get_schedule():
         sn_set = set(sn_dict.keys()) if sn_dict else set()
         # 從 sn_dict 收集所有標題提示 (clean_title, folder_name, rename)
         title_hints = set()
-        sns_without_hints = []  # 沒有標題提示的 SN，需從 DB 查詢
         if sn_dict:
             for list_sn, sn_info in sn_dict.items():
-                has_hint = False
                 plex = sn_info.get('plex')
                 if plex:
                     if plex.get('clean_title'):
                         title_hints.add(plex['clean_title'])
-                        has_hint = True
                     if plex.get('folder_name'):
                         title_hints.add(plex['folder_name'])
-                        has_hint = True
                 if sn_info.get('rename'):
                     title_hints.add(sn_info['rename'])
-                    has_hint = True
-                if not has_hint:
-                    sns_without_hints.append(list_sn)
-        # 對於沒有 Plex/rename 標題的 sn_list 條目，從 DB 查詢 anime_name 補充
-        if sns_without_hints:
+        # 一律從 DB 補充官方標題: 自訂名 (plex/rename) 常是縮寫, 與排程表標題非子字串關係,
+        # 只有 DB 的 anime_name 與週期表一致 (與主迴圈 _find_schedule_info 的 DB 步驟對齊)
+        if sn_dict:
             try:
                 import sqlite3
                 db_path = os.path.join(Config.get_working_dir(), 'aniGamer.db')
                 if os.path.exists(db_path):
                     conn = sqlite3.connect(db_path)
                     cursor = conn.cursor()
-                    placeholders = ','.join('?' for _ in sns_without_hints)
+                    all_sns = list(sn_dict.keys())
+                    placeholders = ','.join('?' for _ in all_sns)
                     cursor.execute(
                         'SELECT DISTINCT anime_name FROM anime WHERE sn IN (' + placeholders + ')',
-                        sns_without_hints
+                        all_sns
                     )
                     for row in cursor.fetchall():
                         if row[0]:
@@ -261,11 +256,11 @@ def get_schedule():
             if item['sn'] in sn_set:
                 item['in_sn_list'] = True
             else:
-                # 用標題子字串比對
+                # 與主迴圈相同的標題比對邏輯, 避免頁面標記與實際排程行為不一致
                 matched = False
                 item_title = item.get('title', '')
                 for hint in title_hints:
-                    if hint in item_title or item_title in hint:
+                    if AnimeSchedule._title_match(hint, item_title):
                         matched = True
                         break
                 item['in_sn_list'] = matched
