@@ -788,9 +788,11 @@ def read_cookie(log=False):
         os.rename(error_cookie_path, cookie_path)
     # 用户可以将cookie保存在程序所在目录下，保存为 cookies.txt ，UTF-8 编码
     if os.path.exists(cookie_path):
-        # 防止 Cookie 文件为空报错
+        # 防止 Cookie 文件为空报错; 回傳空 dict 保持型別一致 (回傳 None 會讓呼叫端取值爆
+        # TypeError, 2026-07-18 失效清空後實際發生過), 且不寫入快取, 使用者補上新 cookie
+        # 後下次讀取即可生效, 不需重啟
         if os.path.getsize(cookie_path) == 0:
-            return None
+            return {}
         # del_bom(cookie_path)  # 移除 bom
         check_encoding(cookie_path)  # 移除 bom
         if log:
@@ -856,6 +858,8 @@ def time_stamp_to_time(timestamp):
 
 def get_cookie_time():
     # 获取 cookie 修改时间
+    if not os.path.exists(cookie_path):
+        return '(cookie檔案不存在)'
     cookie_time = os.path.getmtime(cookie_path)
     return time_stamp_to_time(cookie_time)
 

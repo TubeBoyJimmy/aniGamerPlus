@@ -376,14 +376,16 @@ class Anime:
                         time.sleep(2)
                         try_counter = 0
                         succeed_flag = False
+                        old_BAHARUNE = self._cookies.get('BAHARUNE', '')
                         while try_counter < 3:  # 尝试读三次, 不行就算了
-                            old_BAHARUNE = self._cookies['BAHARUNE']
-                            self._cookies = Config.read_cookie()
+                            new_cookies = Config.read_cookie()
                             err_print(self._sn, '讀取cookie',
                                       'cookie.txt最後修改時間: ' + Config.get_cookie_time() + ' 第' + str(try_counter) + '次嘗試',
                                       display=False)
-                            if old_BAHARUNE != self._cookies['BAHARUNE']:
+                            # read_cookie 可能回傳空值 (cookie 已被標記失效清空), 不可直接取值
+                            if new_cookies and new_cookies.get('BAHARUNE') and new_cookies.get('BAHARUNE') != old_BAHARUNE:
                                 # 新cookie读取成功 (因为有可能其他线程接到了新cookie)
+                                self._cookies = new_cookies
                                 succeed_flag = True
                                 err_print(self._sn, '讀取cookie', '新cookie讀取成功', display=False)
                                 break
@@ -394,6 +396,12 @@ class Anime:
                                 try_counter = try_counter + 1
                         if not succeed_flag:
                             self._cookies = {}
+                            # 清空 session jar: 否則已死的登入 cookie 會從 jar 復活回 self._cookies,
+                            # 後續每個回應都重走一輪重置流程 (3 次重讀+等待), 且空檔案讀回空值後取值會爆錯
+                            try:
+                                self._session.cookies.clear()
+                            except BaseException:
+                                pass
                             err_print(0, '用戶cookie更新失敗! 使用游客身份訪問', status=1, no_sn=True)
                             Config.invalid_cookie()  # 将失效cookie更名
 
