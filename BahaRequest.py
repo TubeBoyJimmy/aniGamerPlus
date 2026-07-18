@@ -72,8 +72,9 @@ def _session_cookie_dict(session):
         d = jar.get_dict()
     except AttributeError:
         d = dict(jar)
-    # 防禦: 過期刪除標記不可寫回 cookie.txt
-    return {k: v for k, v in d.items() if v != 'deleted'}
+    # 防禦: 過期刪除標記與 CF 連線 cookie 不可寫回 cookie.txt
+    # (CF cookie 由 jar 全權管理, 見 Config.strip_cf_cookies 註解)
+    return Config.strip_cf_cookies({k: v for k, v in d.items() if v != 'deleted'})
 
 
 def _do_get(url, cookies, headers, params, proxies, timeout, session=None):

@@ -299,8 +299,9 @@ class Anime:
             d = jar.get_dict()
         except AttributeError:
             d = dict(jar)
-        # 防禦: 過期刪除標記不可混入 self._cookies (會被寫回 cookie.txt 污染檔案)
-        return {k: v for k, v in d.items() if v != 'deleted'}
+        # 防禦: 過期刪除標記與 CF 連線 cookie 不可混入 self._cookies
+        # (會被寫回 cookie.txt, 過期後跨 session 重放是 bot 訊號; CF cookie 由 jar 全權管理)
+        return Config.strip_cf_cookies({k: v for k, v in d.items() if v != 'deleted'})
 
     def __probe_cookie_alive(self):
         # cookie 死刑驗屍: 以現有 cookie 對首頁探測一次, 只依伺服器的正面證據下判斷。

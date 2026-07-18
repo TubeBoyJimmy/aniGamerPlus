@@ -773,6 +773,18 @@ def test_cookie():
     read_cookie(log=True)
 
 
+# Cloudflare 連線層 cookie 只能活在當前 session 的 jar 裡, 不可進 cookie.txt:
+# __cf_bm TTL 約 30 分鐘且綁 TLS 連線, 寫進檔案後跨重啟/跨 session 以明示 cookie 重放,
+# 過期值會蓋掉 jar 內新鮮值, 對 WAF 是明確的 bot 訊號 (2026-07-19 盤點發現,
+# NAS cookie.txt 曾載著死了 28 小時的 __cf_bm 打每一個請求)。
+# cf_clearance 同理: 它綁瀏覽器的 TLS 指紋, 由 curl_cffi 重放無法通過驗證, 只會更可疑
+_CF_COOKIE_PREFIXES = ('__cf', 'cf_', '_cf')
+
+
+def strip_cf_cookies(cookies):
+    return {k: v for k, v in cookies.items() if not k.lower().startswith(_CF_COOKIE_PREFIXES)}
+
+
 def read_cookie(log=False):
     # 如果 cookie 已读入内存, 则直接返回
     global cookie
@@ -803,6 +815,7 @@ def read_cookie(log=False):
                     cookies = line.replace('\n', '')  # 刪除换行符
                     cookies = dict([list(map(lambda x: quote(x, safe='') if re.match(r'[\u4e00-\u9fa5]', x) else x,  l.split("=", 1))) for l in cookies.split("; ")])
                     cookies.pop('ckBH_lastBoard', 404)
+                    cookies = strip_cf_cookies(cookies)  # \u820a\u7248\u5beb\u5165\u7684\u6bad\u5c4d CF cookie \u5728\u8b80\u5165\u6642\u6d88\u6bd2
                     cookie = cookies
                     if log:
                         __color_print(0, '讀取cookie', detail='已讀取cookie', no_sn=True, display=False)
@@ -873,6 +886,7 @@ cookie_write_lock = threading.Lock()
 
 def renew_cookies(new_cookie, log=True):
     global cookie
+    new_cookie = strip_cf_cookies(new_cookie)
     new_cookie_str = ''
     for key, value in new_cookie.items():
         new_cookie_str = new_cookie_str + key + '=' + str(value) + '; '
