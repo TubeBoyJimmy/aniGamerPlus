@@ -28,6 +28,7 @@ except ImportError:
     curl_requests = None
 
 import Config
+import BahaRequest
 from Anime import Anime, TryTooManyTimeError
 from ColorPrint import err_print
 from Danmu import Danmu
@@ -790,9 +791,9 @@ def __init_proxy():
 
 
 def do_request(url, headers, cookies, params=None):
-    if curl_requests is not None:
-        session = curl_requests.Session(impersonate='chrome', thread='gevent')
-        return session.get(url, headers=headers, cookies=cookies, params=params)
+    # 帶用戶 cookie 的請求走 BahaRequest: 統一 UA 並處理 BAHARUNE 一次性輪替寫回
+    if BahaRequest.available():
+        return BahaRequest.get(url, headers=headers, cookies=cookies, params=params)
     return requests.get(url, headers=headers, cookies=cookies, params=params)
 
 
@@ -811,6 +812,7 @@ def export_my_anime():
     from bs4 import BeautifulSoup
 
     url = "https://ani.gamer.com.tw/mygather.php"
+    # 不硬編 user-agent: BahaRequest 會統一帶 settings['ua'] (cookie 輪替要求 UA 前後一致)
     header = {
         'accept':
         'application/json',
@@ -818,8 +820,6 @@ def export_my_anime():
         'https://ani.gamer.com.tw',
         'authority':
         'ani.gamer.com.tw',
-        'user-agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
     }
 
     cookies = Config.read_cookie()

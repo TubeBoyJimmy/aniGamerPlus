@@ -10,11 +10,7 @@ import pyhttpx
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from ColorPrint import err_print
-
-try:
-    from curl_cffi import requests as curl_requests
-except ImportError:
-    curl_requests = None
+import BahaRequest
 
 
 class AnimeSchedule:
@@ -33,20 +29,15 @@ class AnimeSchedule:
         self._last_fail = None
         self._fail_cooldown = 600  # 失敗冷卻 10 分鐘, 避免連續請求墊高 WAF 風控分數
         self._session = None       # pyhttpx session (lazy init)
-        self._curl_session = None  # curl_cffi session (lazy init)
 
     def __request_homepage(self):
         # 巴哈 WAF 以 TLS 指紋識別非瀏覽器請求而回 403 (裸 requests 與 pyhttpx 的舊版指紋均已被識別),
-        # 優先走 curl_cffi 模擬真實 Chrome 指紋, 未安裝時退回 pyhttpx
-        # 不帶用戶 cookie: 首頁排程為公開內容, 避免誤觸用戶 cookie 的一次性刷新機制
+        # 優先走 BahaRequest (curl_cffi 模擬真實 Chrome 指紋), 未安裝時退回 pyhttpx
+        # 帶用戶 cookie: R18 (年齡限制) 條目只對已登入+年齡驗證的 session 渲染,
+        # 匿名抓取會漏掉 R18 番劇排程; BAHARUNE 一次性輪替由 BahaRequest 統一寫回
         url = 'https://ani.gamer.com.tw/'
-        if curl_requests is not None:
-            if self._curl_session is None:
-                # thread='gevent': curl 為 C 阻塞呼叫, 交給 gevent threadpool 以免卡住其他 greenlet
-                self._curl_session = curl_requests.Session(impersonate='chrome', thread='gevent')
-            return self._curl_session.get(url, timeout=15,
-                                          headers={'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.6'},
-                                          proxies=self._proxies or None)
+        if BahaRequest.available():
+            return BahaRequest.get(url, timeout=15, proxies=self._proxies or None)
         if self._session is None:
             browser_type = 'firefox' if 'firefox' in self._ua.lower() else 'chrome'
             self._session = pyhttpx.HttpSession(browser_type=browser_type)

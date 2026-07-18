@@ -348,8 +348,11 @@ class Anime:
             # Cloudflare 幾乎每個回應都會 set-cookie 刷新 __cf_bm, 只有帶 BAHARUNE 的回應
             # 才是真正的登入 cookie 輪替; 其餘一律忽略, 否則刷新流程會被雜訊觸發成遞迴風暴
             # (每次刷新又打一次首頁 → 回應又帶 set-cookie → 無限請求 + 反覆寫 cookie.txt)
-            if 'BAHARUNE' in set_cookie_str:
-                if 'deleted' in set_cookie_str:
+            # 精確匹配 BAHARUNE=值: MB_BAHARUNE 名稱包含 BAHARUNE 子字串, 且 'deleted' 可能
+            # 來自同回應中其他 cookie 的刪除指令, 粗篩會把健康的新 cookie 誤判成重置
+            rune_values = re.findall(r'(?<![A-Za-z_])BAHARUNE=([^;,\s]+)', set_cookie_str)
+            if rune_values:
+                if all(v == 'deleted' for v in rune_values):
                     # set-cookie刷新cookie只有一次机会, 如果其他线程先收到, 则此处会返回 deleted
                     # 等待其他线程刷新了cookie, 重新读入cookie
 

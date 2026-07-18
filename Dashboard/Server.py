@@ -283,17 +283,14 @@ def get_anime_first_sn():
     if cached and (time.time() - cached['time']) < _FIRST_SN_CACHE_TTL:
         return jsonify(cached['data'])
     try:
-        import requests as req_lib
+        import BahaRequest
         from bs4 import BeautifulSoup
-        settings = Config.read_settings()
-        ua = settings.get('ua', '')
-        cookie_dict = Config.read_cookie()
-        headers = {'User-Agent': ua}
-        cookies = {}
-        if isinstance(cookie_dict, dict):
-            cookies = cookie_dict
+        # 巴哈 WAF 以 TLS 指紋攔截裸 requests (100% 403), 必須走 BahaRequest (curl_cffi)
         url = 'https://ani.gamer.com.tw/animeVideo.php?sn=' + sn
-        resp = req_lib.get(url, headers=headers, cookies=cookies, timeout=15)
+        resp = BahaRequest.get(url, timeout=15, sn=int(sn))
+        if resp.status_code != 200:
+            # 失敗不寫快取, 避免空結果卡 1 小時
+            return jsonify({'error': '巴哈回應 HTTP ' + str(resp.status_code)}), 502
         soup = BeautifulSoup(resp.content, 'html.parser')
         # 提取標題
         anime_title = ''
@@ -335,15 +332,15 @@ def manual_preview():
     if cached and (time.time() - cached['time']) < _FIRST_SN_CACHE_TTL and 'episode' in cached['data']:
         return jsonify(cached['data'])
     try:
-        import requests as req_lib
+        import BahaRequest
         from bs4 import BeautifulSoup
         settings = Config.read_settings()
-        ua = settings.get('ua', '')
-        cookie_dict = Config.read_cookie()
-        headers = {'User-Agent': ua}
-        cookies = cookie_dict if isinstance(cookie_dict, dict) else {}
+        # 巴哈 WAF 以 TLS 指紋攔截裸 requests (100% 403), 必須走 BahaRequest (curl_cffi)
         url = 'https://ani.gamer.com.tw/animeVideo.php?sn=' + sn
-        resp = req_lib.get(url, headers=headers, cookies=cookies, timeout=15)
+        resp = BahaRequest.get(url, timeout=15, sn=int(sn))
+        if resp.status_code != 200:
+            # 失敗不寫快取, 避免空結果卡 1 小時
+            return jsonify({'error': '巴哈回應 HTTP ' + str(resp.status_code)}), 502
         soup = BeautifulSoup(resp.content, 'html.parser')
         # 提取完整標題 (含集數)
         full_title = ''

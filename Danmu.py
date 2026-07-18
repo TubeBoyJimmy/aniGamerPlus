@@ -5,6 +5,7 @@ import random
 import re
 import os
 import Config
+import BahaRequest
 from ColorPrint import err_print
 
 # 巴哈 WAF 以 TLS 指紋攔截非瀏覽器請求, 優先走 curl_cffi (詳見 Anime.py)
@@ -61,11 +62,17 @@ class Danmu():
             'https://ani.gamer.com.tw',
             'authority':
             'ani.gamer.com.tw',
-            'user-agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36',
         }
-        ban_words_response = req_client.get(
-            'https://ani.gamer.com.tw/ajax/keywordGet.php', headers=h, cookies=self._cookies)
+        if BahaRequest.available():
+            # 帶用戶 cookie 的請求走 BahaRequest: 統一 UA 並處理 BAHARUNE 一次性輪替寫回,
+            # 避免輪替發生在此處時新 cookie 被丟棄導致 cookie.txt 作廢
+            ban_words_response = BahaRequest.get(
+                'https://ani.gamer.com.tw/ajax/keywordGet.php', headers=h,
+                cookies=self._cookies, sn=self._sn)
+        else:
+            h['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
+            ban_words_response = req_client.get(
+                'https://ani.gamer.com.tw/ajax/keywordGet.php', headers=h, cookies=self._cookies)
 
         if ban_words_response.status_code != 200:
             err_print(self._sn, '取得線上過濾彈幕失敗', 'status_code=' +
