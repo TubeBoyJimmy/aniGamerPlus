@@ -895,6 +895,13 @@ if __name__ == '__main__':
     version_msg = '當前aniGamerPlus版本: ' + settings['aniGamerPlus_version']
     print(version_msg)
 
+    if settings['use_mobile_api'] and curl_requests is not None:
+        # 全程式共用 curl_cffi session 後, 對巴哈只允許一個 UA 身份 (與 TLS 指紋一致);
+        # mobile API 的 Android App UA 會在同一條連線上製造第二身份, 墊高 WAF 風控
+        err_print(0, '設定提醒',
+                  'use_mobile_api 的 App UA 與 curl_cffi 瀏覽器指紋不一致, 會提高 WAF 風控風險, 建議關閉',
+                  status=1, no_sn=True)
+
     # 初始化 sqlite3 数据库
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
