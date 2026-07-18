@@ -351,6 +351,10 @@ class Anime:
             # 精確匹配 BAHARUNE=值: MB_BAHARUNE 名稱包含 BAHARUNE 子字串, 且 'deleted' 可能
             # 來自同回應中其他 cookie 的刪除指令, 粗篩會把健康的新 cookie 誤判成重置
             rune_values = re.findall(r'(?<![A-Za-z_])BAHARUNE=([^;,\s]+)', set_cookie_str)
+            # 同值重申不是輪替: 真輪替後的連續回應會反覆 set 相同的 BAHARUNE (sliding session),
+            # 不比對值會對每個回應都走一輪刷新 (成串首頁確認請求 + 反覆重寫 cookie.txt)
+            if rune_values and any(v != 'deleted' and v == self._cookies.get('BAHARUNE') for v in rune_values):
+                rune_values = []
             if rune_values:
                 if all(v == 'deleted' for v in rune_values):
                     # set-cookie刷新cookie只有一次机会, 如果其他线程先收到, 则此处会返回 deleted
