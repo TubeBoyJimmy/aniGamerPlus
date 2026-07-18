@@ -8,12 +8,6 @@ import Config
 import BahaRequest
 from ColorPrint import err_print
 
-# 巴哈 WAF 以 TLS 指紋攔截非瀏覽器請求, 優先走 curl_cffi (詳見 Anime.py)
-try:
-    from curl_cffi import requests as curl_requests
-except ImportError:
-    curl_requests = None
-
 
 class Danmu():
     def __init__(self, sn, full_filename, cookies):
@@ -40,13 +34,14 @@ class Danmu():
             'https://ani.gamer.com.tw',
             'authority':
             'ani.gamer.com.tw',
-            'user-agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
         }
         data = {'sn': str(self._sn)}
-        if curl_requests is not None:
-            req_client = curl_requests.Session(impersonate='chrome', thread='gevent')
+        if BahaRequest.available():
+            # 走共用 session (維持 jar/__cf_bm 連續性), 不為彈幕另開全新 TLS session (bot 訊號);
+            # UA 不覆寫, 跟隨 curl_cffi impersonate (UA/TLS 指紋錯位也是 bot 訊號)
+            req_client = BahaRequest.shared_session()
         else:
+            h['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36'
             req_client = requests
         r = req_client.post(
             'https://ani.gamer.com.tw/ajax/danmuGet.php', data=data, headers=h)

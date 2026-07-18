@@ -50,6 +50,21 @@ def _drop_session():
         _session = None
 
 
+def shared_session():
+    """給 Anime.py / Danmu.py 取用共用 session: 全程式對巴哈只呈現一個瀏覽器身份
+    (jar/__cf_bm 連續性)。每個實例各開新 session (全新 TLS 握手) 是 WAF 風控訊號,
+    2026-07-19 00:00 多排程同時觸發的 fresh session 爆發即因此吃到假 deleted 與人機驗證頁。
+    併發安全: curl_cffi Session 文件明示 thread-safe (預設 use_thread_local_curl,
+    各執行緒有獨立 curl handle, 共用 cookie jar)。"""
+    return _get_session()
+
+
+def drop_session():
+    """收到 WAF 挑戰頁 (status 200 的人機驗證頁) 時棄用共用 session。
+    403 由 get() 自動處理; 挑戰頁只有呼叫端解析內容才認得出, 需主動通知。"""
+    _drop_session()
+
+
 def _session_cookie_dict(session):
     # 將 session cookie jar 攤平成 dict (同 Anime.__session_cookie_dict)
     jar = session.cookies
@@ -61,8 +76,9 @@ def _session_cookie_dict(session):
     return {k: v for k, v in d.items() if v != 'deleted'}
 
 
-def _do_get(url, cookies, headers, params, proxies, timeout):
-    session = _get_session()
+def _do_get(url, cookies, headers, params, proxies, timeout, session=None):
+    if session is None:
+        session = _get_session()
     resp = session.get(url, headers=headers, cookies=cookies, params=params,
                        timeout=timeout, proxies=proxies or None)
     return resp, session
@@ -101,7 +117,11 @@ def get(url, cookies=None, headers=None, params=None, proxies=None, timeout=15, 
     if headers:
         req_headers.update(headers)
 
-    resp, session = _do_get(url, cookies, req_headers, params, proxies, timeout)
+    session = _get_session()
+    # 輪替偵測基準需含 jar 送出前值: cookie.txt 被清空但共用 jar 仍載有登入 cookie 時
+    # (2026-07-19 事故後的實際狀態), 輪替發生在 jar cookie 上, 只看明示 cookies 會漏寫回
+    jar_rune_before = _session_cookie_dict(session).get('BAHARUNE')
+    resp, _ = _do_get(url, cookies, req_headers, params, proxies, timeout, session=session)
     if resp.status_code == 403:
         # WAF 挑戰: 棄用 session, 下次請求以乾淨狀態重來 (退避節奏由呼叫端負責)
         _drop_session()
@@ -110,13 +130,16 @@ def get(url, cookies=None, headers=None, params=None, proxies=None, timeout=15, 
     # 實測巴哈會對「健康的登入 session」在首頁回應發出整組 BAHARUNE=deleted 刪除指令
     # (子網域 cookie 去重, jar 實際值不變), 且 MB_BAHARUNE 名稱包含 BAHARUNE 子字串,
     # 字串嗅探兩種情況都會誤判; jar 值有變才是真的收到新 cookie
-    sent_rune = cookies.get('BAHARUNE')
+    sent_rune = cookies.get('BAHARUNE') or jar_rune_before
     if sent_rune:
         jar_rune = _session_cookie_dict(session).get('BAHARUNE')
         if jar_rune and jar_rune != sent_rune:
             if _renew_lock.acquire(blocking=False):
                 try:
-                    new_cookies = dict(cookies)
+                    # 寫回以磁碟現值為底: cookies 可能是空 dict (cookie.txt 曾被清空),
+                    # 只用它當底會把 BAHAID 等欄位漏掉
+                    new_cookies = Config.read_cookie() or {}
+                    new_cookies.update(cookies)
                     new_cookies.update(_session_cookie_dict(session))
                     Config.renew_cookies(new_cookies, log=False)
                     # 確認請求僅允許一層: 直接走 _do_get, 不重入本輪替流程

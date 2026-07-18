@@ -8,6 +8,7 @@ import shutil
 import traceback
 import Config
 import pyhttpx
+import BahaRequest
 from Danmu import Danmu
 from bs4 import BeautifulSoup
 import re, time, os, platform, subprocess, requests, random, sys
@@ -45,10 +46,11 @@ class Anime:
         self._gost_port = str(gost_port)
 
         if curl_requests is not None:
-            # 所有請求 (頁面/ajax/m3u8/分段) 統一走同一個 curl_cffi session, cookie 狀態共用
-            # thread='gevent': curl 為 C 阻塞呼叫, monkey patch 無法接管,
-            # 交給 gevent threadpool 執行以免卡住其他 greenlet (Dashboard/並行下載)
-            self._session = curl_requests.Session(impersonate='chrome', thread='gevent')
+            # 所有請求 (頁面/ajax/m3u8/分段) 走 BahaRequest 的共用 curl_cffi session:
+            # 全程式對巴哈只呈現一個瀏覽器身份 (jar/__cf_bm 連續性)。
+            # 每個實例各開新 session (全新 TLS 握手) 是 WAF 風控訊號, 2026-07-19 00:00
+            # 多排程同時觸發的 fresh session 爆發即因此吃到假 BAHARUNE=deleted 與人機驗證頁
+            self._session = BahaRequest.shared_session()
             self._pyhttpx_session = self._session
         else:
             self._session = requests.session()
@@ -175,6 +177,9 @@ class Anime:
                 if soup.find('div', class_='captcha') is not None or '系統異常' in str(page_title):
                     # 收到的是 WAF 人機驗證頁, 不是動畫頁
                     err_print(self._sn, 'ERROR: 頁面被反爬蟲機制攔截 (人機驗證頁)', status=1)
+                    if curl_requests is not None:
+                        # 共用 session 已被挑戰標記, 棄用讓後續實例以乾淨狀態重來 (同 BahaRequest 403 處理)
+                        BahaRequest.drop_session()
                 else:
                     # 该sn下没有动画
                     err_print(self._sn, 'ERROR: 該 sn 下真的有動畫？', status=1)
@@ -291,9 +296,33 @@ class Anime:
         # 避免 jar 內 .gamer.com.tw 與 ani.gamer.com.tw 兩份同名 cookie 造成重複)
         jar = self._session.cookies
         try:
-            return jar.get_dict()
+            d = jar.get_dict()
         except AttributeError:
-            return dict(jar)
+            d = dict(jar)
+        # 防禦: 過期刪除標記不可混入 self._cookies (會被寫回 cookie.txt 污染檔案)
+        return {k: v for k, v in d.items() if v != 'deleted'}
+
+    def __probe_cookie_alive(self):
+        # cookie 死刑驗屍: 以現有 cookie 對首頁探測一次, 只依伺服器的正面證據下判斷。
+        # True  = BAHARUNE 被重申 (sliding session 對有效 session 的行為), cookie 仍活
+        # False = 伺服器發了訪客 cookie (nologinuser), cookie 確認死亡
+        # None  = 挑戰頁/請求失敗等無法判定 → 呼叫端應保留 cookie
+        #         (誤殺健康 cookie 的代價遠高於多失敗一次任務, 2026-07-19 00:00 實證)
+        self._renewing_cookie = True  # 探測請求不重入刷新流程
+        try:
+            probe = self.__request('https://ani.gamer.com.tw/', show_fail=False, max_retry=1)
+        except BaseException:
+            return None
+        finally:
+            self._renewing_cookie = False
+        if probe.status_code != 200:
+            return None
+        jar = self.__session_cookie_dict()
+        if jar.get('BAHARUNE'):
+            return True
+        if 'nologinuser' in jar:
+            return False
+        return None
 
     def __request(self, req, no_cookies=False, show_fail=True, max_retry=3, addition_header=None, use_pyhttpx = False):
         # 设置 header
@@ -344,21 +373,52 @@ class Anime:
                 # self._cookies['nologinuser'] = self._session.cookies['nologinuser']
                 self._cookies = self.__session_cookie_dict()
         elif not self._renewing_cookie:  # 如果用户提供了 cookie, 则处理cookie刷新 (刷新確認請求本身不重入此流程)
-            set_cookie_str = f.headers.get('set-cookie') if 'set-cookie' in f.headers.keys() else ''
-            # Cloudflare 幾乎每個回應都會 set-cookie 刷新 __cf_bm, 只有帶 BAHARUNE 的回應
-            # 才是真正的登入 cookie 輪替; 其餘一律忽略, 否則刷新流程會被雜訊觸發成遞迴風暴
-            # (每次刷新又打一次首頁 → 回應又帶 set-cookie → 無限請求 + 反覆寫 cookie.txt)
-            # 精確匹配 BAHARUNE=值: MB_BAHARUNE 名稱包含 BAHARUNE 子字串, 且 'deleted' 可能
-            # 來自同回應中其他 cookie 的刪除指令, 粗篩會把健康的新 cookie 誤判成重置
-            rune_values = re.findall(r'(?<![A-Za-z_])BAHARUNE=([^;,\s]+)', set_cookie_str)
-            # 同值重申不是輪替: 真輪替後的連續回應會反覆 set 相同的 BAHARUNE (sliding session),
-            # 不比對值會對每個回應都走一輪刷新 (成串首頁確認請求 + 反覆重寫 cookie.txt)
-            if rune_values and any(v != 'deleted' and v == self._cookies.get('BAHARUNE') for v in rune_values):
-                rune_values = []
-            if rune_values:
-                if all(v == 'deleted' for v in rune_values):
-                    # set-cookie刷新cookie只有一次机会, 如果其他线程先收到, 则此处会返回 deleted
-                    # 等待其他线程刷新了cookie, 重新读入cookie
+            # 輪替偵測以 jar 值比對為主 (同 BahaRequest.get): set-cookie 字串嗅探已多次誤判
+            # (MB_BAHARUNE 子字串 / 其他 cookie 的 deleted 指令 / 2026-07-19 00:00 對健康
+            # session 發假 BAHARUNE=deleted 導致誤殺)。jar 值有變才是真的收到新 cookie;
+            # 同值重申 (sliding session) 落在 jar_rune == my_rune, 自然不觸發任何流程
+            jar_rune = self.__session_cookie_dict().get('BAHARUNE', '')
+            my_rune = self._cookies.get('BAHARUNE', '')
+            if jar_rune and jar_rune != my_rune:
+                # 本 session 真的收到了新cookie (輪替), 與 set-cookie 字串內容無關
+                err_print(self._sn, '收到新cookie', display=False)
+                disk_cookies = Config.read_cookie()
+                if disk_cookies and disk_cookies.get('BAHARUNE') == jar_rune:
+                    # 共用 session 下輪替只發生一次, 其他實例已完成寫回: 同步即可, 不再打確認請求
+                    self._cookies = disk_cookies
+                else:
+                    # 20220115 简化 cookie 刷新逻辑
+                    self._cookies.update(self.__session_cookie_dict())
+                    Config.renew_cookies(self._cookies, log=False)
+
+                    key_list_str = ', '.join(self.__session_cookie_dict().keys())
+                    err_print(self._sn, f'用戶cookie刷新 {key_list_str} ', display=False)
+
+                    # 20210724 动画疯一步到位刷新 Cookie
+                    # 防遞迴: 確認請求僅允許一層, 其回應的 cookie 在此收割而非重入刷新流程
+                    self._renewing_cookie = True
+                    try:
+                        self.__request('https://ani.gamer.com.tw/')
+                        self._cookies.update(self.__session_cookie_dict())
+                        Config.renew_cookies(self._cookies, log=False)
+                    finally:
+                        self._renewing_cookie = False
+                    err_print(0, '用戶cookie已更新', status=2, no_sn=True)
+                if self._settings['use_mobile_api']:
+                    # 当使用 APP API 临时切换至 Web API 更新 Cookie 时，Cookie 更新成功再切换回 App Header
+                    self._req_header = self._mobile_header
+                    err_print(self._sn, '切換回 App Header 進行影片解析', display=False)
+            elif my_rune and not jar_rune:
+                # jar 沒有有效的 BAHARUNE: 只有此時 set-cookie 的刪除指令才值得懷疑
+                # (jar 值健在的話, deleted 必是子網域/路徑變體的去重雜訊, 直接忽略)
+                set_cookie_str = f.headers.get('set-cookie') if 'set-cookie' in f.headers.keys() else ''
+                # 精確匹配 BAHARUNE=值: MB_BAHARUNE 名稱包含 BAHARUNE 子字串
+                rune_values = re.findall(r'(?<![A-Za-z_])BAHARUNE=([^;,\s]+)', set_cookie_str)
+                if rune_values and all(v == 'deleted' for v in rune_values):
+                    # 重置疑雲: 回應明示刪除 BAHARUNE 且 jar 也沒有留下有效值。可能是
+                    # (a) 一次性輪替被其他執行緒先接走 → 重讀 cookie.txt 拿新值
+                    # (b) 對健康 session 的假 deleted (2026-07-19 00:00 實證) → 驗屍探測還原真相
+                    # (c) cookie 真的失效 → 探測確認訪客身份後才標記失效
 
                     if self._settings['use_mobile_api'] and 'X-Bahamut-App-Android' in self._req_header:
                         # 使用移动API将无法进行 cookie 刷新, 改回 header 刷新 cookie
@@ -376,14 +436,13 @@ class Anime:
                         time.sleep(2)
                         try_counter = 0
                         succeed_flag = False
-                        old_BAHARUNE = self._cookies.get('BAHARUNE', '')
                         while try_counter < 3:  # 尝试读三次, 不行就算了
                             new_cookies = Config.read_cookie()
                             err_print(self._sn, '讀取cookie',
                                       'cookie.txt最後修改時間: ' + Config.get_cookie_time() + ' 第' + str(try_counter) + '次嘗試',
                                       display=False)
                             # read_cookie 可能回傳空值 (cookie 已被標記失效清空), 不可直接取值
-                            if new_cookies and new_cookies.get('BAHARUNE') and new_cookies.get('BAHARUNE') != old_BAHARUNE:
+                            if new_cookies and new_cookies.get('BAHARUNE') and new_cookies.get('BAHARUNE') != my_rune:
                                 # 新cookie读取成功 (因为有可能其他线程接到了新cookie)
                                 self._cookies = new_cookies
                                 succeed_flag = True
@@ -395,6 +454,21 @@ class Anime:
                                 time.sleep(random_wait_time)
                                 try_counter = try_counter + 1
                         if not succeed_flag:
+                            # 驗屍: 重讀無新值 ≠ cookie 已死 (2026-07-19 00:00 假 deleted 誤殺健康
+                            # cookie, cookie 被清 9 分鐘後排程首頁仍渲染登入版 60 項/R18)。
+                            # 死刑只能建立在「伺服器把我們當訪客」的正面證據上
+                            verdict = self.__probe_cookie_alive()
+                            if verdict is True:
+                                self._cookies.update(self.__session_cookie_dict())
+                                if self._cookies.get('BAHARUNE') != my_rune:
+                                    Config.renew_cookies(self._cookies, log=False)
+                                succeed_flag = True
+                                err_print(self._sn, 'cookie驗屍', '探測確認cookie仍有效, 忽略重置指令', display=False)
+                            elif verdict is None:
+                                # 無法判定 (挑戰頁/請求失敗): 保守保留 cookie, 寧可本次任務失敗
+                                succeed_flag = True
+                                err_print(0, 'cookie驗屍', '無法判定cookie狀態, 保留cookie不標記失效', status=1, no_sn=True)
+                        if not succeed_flag:
                             self._cookies = {}
                             # 清空 session jar: 否則已死的登入 cookie 會從 jar 復活回 self._cookies,
                             # 後續每個回應都重走一輪重置流程 (3 次重讀+等待), 且空檔案讀回空值後取值會爆錯
@@ -403,37 +477,11 @@ class Anime:
                             except BaseException:
                                 pass
                             err_print(0, '用戶cookie更新失敗! 使用游客身份訪問', status=1, no_sn=True)
-                            Config.invalid_cookie()  # 将失效cookie更名
+                            Config.invalid_cookie()  # 将失效cookie标记失效
 
                         if self._settings['use_mobile_api'] and 'X-Bahamut-App-Android' not in self._req_header:
                             # 即使切换 header cookie 也无法刷新, 那么恢复 header, 好歹广告只有 3s
                             self._req_header = self._mobile_header
-
-                else:
-                    # 本线程收到了新cookie
-                    # 20220115 简化 cookie 刷新逻辑
-                    err_print(self._sn, '收到新cookie', display=False)
-
-                    self._cookies.update(self.__session_cookie_dict())
-                    Config.renew_cookies(self._cookies, log=False)
-
-                    key_list_str = ', '.join(self.__session_cookie_dict().keys())
-                    err_print(self._sn, f'用戶cookie刷新 {key_list_str} ', display=False)
-
-                    # 20210724 动画疯一步到位刷新 Cookie
-                    # 防遞迴: 確認請求僅允許一層, 其回應的 cookie 在此收割而非重入刷新流程
-                    self._renewing_cookie = True
-                    try:
-                        self.__request('https://ani.gamer.com.tw/')
-                        self._cookies.update(self.__session_cookie_dict())
-                        Config.renew_cookies(self._cookies, log=False)
-                    finally:
-                        self._renewing_cookie = False
-                    err_print(0, '用戶cookie已更新', status=2, no_sn=True)
-                    if self._settings['use_mobile_api']:
-                        # 当使用 APP API 临时切换至 Web API 更新 Cookie 时，Cookie 更新成功再切换回 App Header
-                        self._req_header = self._mobile_header
-                        err_print(self._sn, '切換回 App Header 進行影片解析', display=False)
 
         return f
 
