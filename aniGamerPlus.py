@@ -1097,6 +1097,7 @@ if __name__ == '__main__':
         RETRY_INTERVALS = [600, 1800, 3600]  # 10分鐘, 30分鐘, 60分鐘
         last_fallback_check = time.time()
         last_schedule_refresh = time.time()
+        schedule_fetch_fails = 0 if schedule_ok else 1  # 連續抓取失敗次數 (退避用)
         day_names = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
 
         def _format_schedule_entry(info):
@@ -1194,7 +1195,7 @@ if __name__ == '__main__':
         if not schedule_ok:
             # 排程表抓取失敗 (如 WAF 403): 立即全量檢查一次, 避免空等 fallback 週期
             err_print(0, '排程模式',
-                      '排程表抓取失敗, 立即執行一次全量檢查, 之後每 15 分鐘重試抓取排程表',
+                      '排程表抓取失敗, 立即執行一次全量檢查, 之後以 15 分鐘起步指數退避重試抓取',
                       status=1, no_sn=True)
             count, _ = _do_check_and_start()
             err_print(0, '更新資訊',
@@ -1326,12 +1327,18 @@ if __name__ == '__main__':
                 danmu = settings['danmu']
                 count, _ = _do_check_and_start()
 
-            # --- 定期重新抓取排程表 (正常每小時; 抓取失敗時每 15 分鐘重試) ---
-            refresh_interval = 3600 if schedule_ok else 900
+            # --- 定期重新抓取排程表 (正常每小時; 失敗時指數退避重試) ---
+            # 403 挑戰期間固定 15 分鐘重試會不斷替 IP 的 WAF 風控分數保溫, 熱度永遠退不掉;
+            # 指數退避 15→30→60→120→240 分鐘 (上限 4 小時), 給風控降溫的安靜期
+            if schedule_ok:
+                refresh_interval = 3600
+            else:
+                refresh_interval = min(900 * (2 ** max(schedule_fetch_fails - 1, 0)), 14400)
             if (time.time() - last_schedule_refresh) >= refresh_interval:
                 was_ok = schedule_ok
                 schedule_ok = anime_schedule.fetch_schedule()
                 last_schedule_refresh = time.time()
+                schedule_fetch_fails = 0 if schedule_ok else schedule_fetch_fails + 1
                 if schedule_ok:
                     title_hints_map = _build_title_hints_map(sn_dict)
                     time_table = anime_schedule.build_time_table(

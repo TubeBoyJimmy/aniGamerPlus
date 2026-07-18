@@ -278,7 +278,6 @@ class Anime:
             "Connection": "Keep-Alive"
         }
         self._web_header = {
-                "User-Agent": ua,
                 "referer": ref,
                 "Accept-Language": lang,
                 "Accept": accept,
@@ -286,6 +285,13 @@ class Anime:
                 "Cache-Control": cache_control,
                 "Origin": origin
             }
+        # curl_cffi 路徑不覆寫 UA: v1.1.12 起全程式共用一個 session, 此處若用 settings['ua']
+        # 會與 BahaRequest 各請求 (impersonate 自帶 UA) 在同一條連線上 UA 交錯 —
+        # 明確的 bot 訊號, 首頁排程請求因此被 WAF 挑戰 403 (2026-07-19 00:53 實測),
+        # 而 animeVideo/ajax 因屬連線上的多數身份而通行。統一跟隨與 TLS 指紋一致的 impersonate UA
+        if curl_requests is None:
+            # 後備路徑 (pyhttpx/requests) 不會自帶 UA, 才需要明示
+            self._web_header["User-Agent"] = ua
         if self._settings['use_mobile_api']:
             self._req_header = self._mobile_header
         else:
